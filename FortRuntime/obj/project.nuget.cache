@@ -1,8 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "52afY7sutFM=",
+  "dgSpecHash": "mHw4vwoLnEE=",
   "success": true,
-  "projectFilePath": "C:\\Users\\alani\\source\\repos\\FortGen\\FortRuntime\\FortRuntime.csproj",
-  "expectedPackageFiles": [],
+  "projectFilePath": "/app/FortRuntime/FortRuntime.csproj",
+  "expectedPackageFiles": [
+    "/home/jules/.nuget/packages/microsoft.netcore.app.host.linux-x64/8.0.24/microsoft.netcore.app.host.linux-x64.8.0.24.nupkg.sha512"
+  ],
   "logs": []
 }
