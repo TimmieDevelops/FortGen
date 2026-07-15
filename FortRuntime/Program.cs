@@ -5,6 +5,7 @@ class Program
     static void Main(string[] args)
     {
         FolderManager.LoadFolders();
+        FolderManager.LoadLastDllPath();
 
         while (true)
         {
