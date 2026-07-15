@@ -1,1 +1,1 @@
-C:\Users\alani\OneDrive\Desktop\GitHub\FortGen\x64\Release\FortGen.dll
+C:\Users\alani\OneDrive\Desktop\GitHub\FortGen\Release\FortGen.dll

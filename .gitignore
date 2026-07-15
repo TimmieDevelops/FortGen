@@ -71,3 +71,4 @@ Testing/
 /.vs
 /FortGen/x64
 /FortRuntime/obj/Release
+/FortRuntime/obj

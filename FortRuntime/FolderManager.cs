@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -44,11 +45,181 @@ namespace FortRuntime
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool CloseHandle(IntPtr hObject);
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool IsWow64Process(IntPtr hProcess, out bool wow64Process);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr CreateToolhelp32Snapshot(uint dwFlags, uint th32ProcessID);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Ansi)]
+        private static extern bool Module32First(IntPtr hSnapshot, ref MODULEENTRY32 lpme);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Ansi)]
+        private static extern bool Module32Next(IntPtr hSnapshot, ref MODULEENTRY32 lpme);
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+        private struct MODULEENTRY32
+        {
+            public uint dwSize;
+            public uint th32ModuleID;
+            public uint th32ProcessID;
+            public uint GlblcntUsage;
+            public uint ProccntUsage;
+            public IntPtr modBaseAddr;
+            public uint modBaseSize;
+            public IntPtr hModule;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+            public string szModule;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+            public string szExePath;
+        }
+
+        private const uint TH32CS_SNAPMODULE = 0x00000008;
+        private const uint TH32CS_SNAPMODULE32 = 0x00000010;
+
         private const uint PROCESS_ALL_ACCESS = 0x001F0FFF;
         private const uint MEM_COMMIT = 0x1000;
         private const uint MEM_RESERVE = 0x2000;
         private const uint PAGE_READWRITE = 0x04;
         private const uint INFINITE = 0xFFFFFFFF;
+
+        private static IntPtr GetRemoteModuleBase(int processId, string moduleName)
+        {
+            IntPtr hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, (uint)processId);
+            if (hSnapshot == (IntPtr)(-1))
+                return IntPtr.Zero;
+
+            try
+            {
+                MODULEENTRY32 modEntry = new MODULEENTRY32();
+                modEntry.dwSize = (uint)Marshal.SizeOf(typeof(MODULEENTRY32));
+
+                if (Module32First(hSnapshot, ref modEntry))
+                {
+                    do
+                    {
+                        if (string.Equals(modEntry.szModule, moduleName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return modEntry.modBaseAddr;
+                        }
+                    } while (Module32First(hSnapshot, ref modEntry));
+                }
+            } 
+            finally
+            {
+                CloseHandle(hSnapshot);
+            }
+
+            return IntPtr.Zero;
+        }
+
+        private static uint GetExportRVA(string dllPath, string functionName)
+        {
+
+            try
+            {
+                byte[] fileBytes = File.ReadAllBytes(dllPath);
+
+                int ntHeaderOffset = BitConverter.ToInt32(fileBytes, 0x3C);
+                int optHeaderOffset = ntHeaderOffset + 4 + 20;
+                ushort magic = BitConverter.ToUInt16(fileBytes, optHeaderOffset);
+
+                int exportDirRvaOffset = optHeaderOffset + (magic == 0x10B ? 96 : 112);
+                uint exportDirRVA = BitConverter.ToUInt32(fileBytes, exportDirRvaOffset);
+                uint exportDirSize = BitConverter.ToUInt32(fileBytes, exportDirRvaOffset + 4);
+
+                if (exportDirRVA == 0) return 0;
+
+                ushort numSections = BitConverter.ToUInt16(fileBytes, ntHeaderOffset + 4 + 2);
+                ushort sizeOptHeader = BitConverter.ToUInt16(fileBytes, ntHeaderOffset + 4 + 16);
+                int sectionHeaderOffset = ntHeaderOffset + 4 + 20 + sizeOptHeader;
+
+                uint exportFileOffset = 0;
+
+                for (int i = 0; i < numSections; i++)
+                {
+                    int secOffset = sectionHeaderOffset + (i * 40);
+                    uint virtualAddress = BitConverter.ToUInt32(fileBytes, secOffset + 12);
+                    uint virtualSize = BitConverter.ToUInt32(fileBytes, secOffset + 8);
+                    uint pointerToRawData = BitConverter.ToUInt32(fileBytes, secOffset + 20);
+
+                    if (exportDirRVA >= virtualAddress && exportDirRVA < virtualAddress + virtualSize)
+                    {
+                        exportFileOffset = pointerToRawData + (exportDirRVA - virtualAddress);
+                        break;
+                    }
+                }
+
+                if (exportFileOffset == 0) return 0;
+
+                uint numberOfNames = BitConverter.ToUInt32(fileBytes, (int)exportFileOffset + 24);
+                uint addressOfFunctionsRVA = BitConverter.ToUInt32(fileBytes, (int)exportFileOffset + 28);
+                uint addressOfNamesRVA = BitConverter.ToUInt32(fileBytes, (int)exportFileOffset + 32);
+                uint addressOfNameOrdinalsRVA = BitConverter.ToUInt32(fileBytes, (int)exportFileOffset + 36);
+
+                uint addressOfFunctionsOffset = 0;
+                uint addressOfNamesOffset = 0;
+                uint addressOfNameOrdinalsOffset = 0;
+
+                for (int i = 0; i < numSections; i++)
+                {
+                    int secOffset = sectionHeaderOffset + (i * 40);
+                    uint virtualAddress = BitConverter.ToUInt32(fileBytes, secOffset + 12);
+                    uint virtualSize = BitConverter.ToUInt32(fileBytes, secOffset + 8);
+                    uint pointerToRawData = BitConverter.ToUInt32(fileBytes, secOffset + 20);
+
+                    if (addressOfFunctionsRVA >= virtualAddress && addressOfFunctionsRVA < virtualAddress + virtualSize)
+                        addressOfFunctionsOffset = pointerToRawData + (addressOfFunctionsRVA - virtualAddress);
+
+                    if (addressOfNamesRVA >= virtualAddress && addressOfNamesRVA < virtualAddress + virtualSize)
+                        addressOfNamesOffset = pointerToRawData + (addressOfNamesRVA - virtualAddress);
+
+                    if (addressOfNameOrdinalsRVA >= virtualAddress && addressOfNameOrdinalsRVA < virtualAddress + virtualSize)
+                        addressOfNameOrdinalsOffset = pointerToRawData + (addressOfNameOrdinalsRVA - virtualAddress);
+                }
+
+                if (addressOfFunctionsOffset == 0 || addressOfNamesOffset == 0 || addressOfNameOrdinalsOffset == 0)
+                    return 0;
+
+                for (uint i = 0; i < numberOfNames; i++)
+                {
+                    uint nameRVA = BitConverter.ToUInt32(fileBytes, (int)addressOfNamesOffset + (int)(i * 4));
+                    uint nameOffset = 0;
+                    for (int s = 0; s < numSections; s++)
+                    {
+                        int secOffset = sectionHeaderOffset + (s * 40);
+                        uint virtualAddress = BitConverter.ToUInt32(fileBytes, secOffset + 12);
+                        uint virtualSize = BitConverter.ToUInt32(fileBytes, secOffset + 8);
+                        uint pointerToRawData = BitConverter.ToUInt32(fileBytes, secOffset + 20);
+
+                        if (nameRVA >= virtualAddress && nameRVA < virtualAddress + virtualSize)
+                        {
+                            nameOffset = pointerToRawData + (nameRVA - virtualAddress);
+                            break;
+                        }
+                    }
+
+                    if (nameOffset == 0) continue;
+
+                    int length = 0;
+                    while (fileBytes[nameOffset + length] != 0) length++;
+                    string name = Encoding.ASCII.GetString(fileBytes, (int)nameOffset, length);
+
+                    if (name == functionName)
+                    {
+                        ushort ordinal = BitConverter.ToUInt16(fileBytes, (int)addressOfNameOrdinalsOffset + (int)(i * 2));
+                        uint functionRVA = BitConverter.ToUInt32(fileBytes, (int)addressOfFunctionsOffset + (int)(ordinal * 4));
+                        return functionRVA;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error parsing PE exports: {ex.Message}");
+            }
+
+            return 0;
+        }
 
         private static bool InjectDLL(int processId, string dllPath)
         {
@@ -83,8 +254,44 @@ namespace FortRuntime
                     return false;
                 }
 
-                IntPtr kernel32Handle = GetModuleHandle("kernel32.dll");
-                IntPtr loadLibraryAddr = GetProcAddress(kernel32Handle, "LoadLibraryA");
+                IntPtr loadLibraryAddr = IntPtr.Zero;
+
+                bool isTargetWow64 = false;
+                if (IsWow64Process(hProcess, out bool wow64) && wow64)
+                    isTargetWow64 = true;
+
+                if (Environment.Is64BitProcess && isTargetWow64)
+                {
+                    IntPtr targetkernel32base = GetRemoteModuleBase(processId, "kernel32.dll");
+                    if (targetkernel32base == IntPtr.Zero)
+                    {
+                        Console.WriteLine("Failed to find kernel32.dll in target 32-bit process.");
+                        return false;
+                    }
+
+                    string sysWow64Path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "SysWOW64\\kernel32.dll");
+                    if (!File.Exists(sysWow64Path))
+                    {
+                        Console.WriteLine("SysWOW64\\kernel32.dll not found.");
+                        return false;
+                    }
+
+                    uint loadLibraryRVA = GetExportRVA(sysWow64Path, "LoadLibraryA");
+                    if (loadLibraryRVA == 0)
+                    {
+                        Console.WriteLine("Failed to find LoadLibraryA export RVA in 32-bit kernel32.dll");
+                        return false;
+                    }
+
+                    loadLibraryAddr = (IntPtr)((long)targetkernel32base + loadLibraryRVA);
+                    Console.WriteLine($"Resolved 32-bit LoadLibraryA address in remote process: 0x{loadLibraryAddr.ToInt64():X}");
+                }
+                else
+                {
+                    IntPtr kernel32Handle = GetModuleHandle("kernel32.dll");
+                    loadLibraryAddr = GetProcAddress(kernel32Handle, "LoadLibraryA");
+                }
+
                 if (loadLibraryAddr == IntPtr.Zero)
                 {
                     Console.WriteLine("Failed to resolve LoadLibraryA address");
