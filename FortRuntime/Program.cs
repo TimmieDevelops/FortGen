@@ -1,10 +1,50 @@
 using System;
+using System.Runtime.InteropServices;
 using FortRuntime;
 
 class Program
 {
+    // Declare P/Invoke for console control handler
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool SetConsoleCtrlHandler(ConsoleCtrlDelegate handler, bool add);
+
+    private delegate bool ConsoleCtrlDelegate(int ctrlType);
+    private const int CTRL_CLOSE_EVENT = 2;
+
+    // Prevent GC from collecting the delegate
+    private static ConsoleCtrlDelegate? _consoleCtrlDelegate;
+
+    private static bool HandlerRoutine(int ctrlType)
+    {
+        if (ctrlType == CTRL_CLOSE_EVENT)
+        {
+            GameLauncher.QuitGame();
+        }
+        return false; // Let the system continue with termination
+    }
+
     static void Main(string[] args)
     {
+        // Register AppDomain process exit fallback
+        AppDomain.CurrentDomain.ProcessExit += (sender, e) =>
+        {
+            GameLauncher.QuitGame();
+        };
+
+        // Register Windows console close event handler
+        if (OperatingSystem.IsWindows())
+        {
+            try
+            {
+                _consoleCtrlDelegate = new ConsoleCtrlDelegate(HandlerRoutine);
+                SetConsoleCtrlHandler(_consoleCtrlDelegate, true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error registering console control handler: {ex.Message}");
+            }
+        }
+
         FolderManager.LoadFolders();
 
         while (true)
