@@ -1,0 +1,15 @@
+/app/FortRuntime/bin/Debug/net8.0/FortRuntime
+/app/FortRuntime/bin/Debug/net8.0/FortRuntime.deps.json
+/app/FortRuntime/bin/Debug/net8.0/FortRuntime.runtimeconfig.json
+/app/FortRuntime/bin/Debug/net8.0/FortRuntime.dll
+/app/FortRuntime/bin/Debug/net8.0/FortRuntime.pdb
+/app/FortRuntime/obj/Debug/net8.0/FortRuntime.GeneratedMSBuildEditorConfig.editorconfig
+/app/FortRuntime/obj/Debug/net8.0/FortRuntime.AssemblyInfoInputs.cache
+/app/FortRuntime/obj/Debug/net8.0/FortRuntime.AssemblyInfo.cs
+/app/FortRuntime/obj/Debug/net8.0/FortRuntime.csproj.CoreCompileInputs.cache
+/app/FortRuntime/obj/Debug/net8.0/FortRuntime.sourcelink.json
+/app/FortRuntime/obj/Debug/net8.0/FortRuntime.dll
+/app/FortRuntime/obj/Debug/net8.0/refint/FortRuntime.dll
+/app/FortRuntime/obj/Debug/net8.0/FortRuntime.pdb
+/app/FortRuntime/obj/Debug/net8.0/FortRuntime.genruntimeconfig.cache
+/app/FortRuntime/obj/Debug/net8.0/ref/FortRuntime.dll
