@@ -11,5 +11,7 @@
 #include "framework.h"
 
 #include "Helpers/Public/Utils.h"
+#include "Helpers/Public/Logger.h"
+#include "Helpers/Public/Scanner.h"
 
 #endif //PCH_H

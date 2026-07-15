@@ -7,4 +7,5 @@ void Utils::InitConsole()
     FILE* Dummy;
     freopen_s(&Dummy, "CONOUT$", "w", stdout);
     freopen_s(&Dummy, "CONIN$", "r", stdin);
+    SetConsoleTitle(L"FortGen");
 }
