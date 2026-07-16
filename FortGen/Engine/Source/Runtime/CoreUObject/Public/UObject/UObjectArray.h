@@ -23,6 +23,7 @@
 */
 struct FUObjectItem
 {
+	DEFINE_MEMBER(Objects, Address::FUObjectItem_Object, class UObjectBase*)
 };
 
 /**
