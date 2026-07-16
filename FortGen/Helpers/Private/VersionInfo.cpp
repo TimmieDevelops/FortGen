@@ -1,5 +1,8 @@
 #include "pch.h"
 
+double VersionInfo::EngineVersion = 0.0;
+int VersionInfo::Changelist = 0;
+
 std::string VersionInfo::GetVersionString()
 {
     uintptr_t Address = Finder::FindUKismetSystemLibrary_GetEngineVersion();
@@ -18,13 +21,13 @@ std::string VersionInfo::GetVersionString()
     return VersionStr;
 }
 
-void VersionInfo::InitParseVersion(std::string& OutEngineVersion, std::string& OutChangelist)
+void VersionInfo::InitParseVersion()
 {
     std::string FullVersion = GetVersionString();
     if (FullVersion.empty())
     {
-        OutEngineVersion = "Unknown";
-        OutChangelist = "0";
+        EngineVersion = 0.0;
+        Changelist = 0;
         return;
     }
 
@@ -37,18 +40,26 @@ void VersionInfo::InitParseVersion(std::string& OutEngineVersion, std::string& O
     if (FirstDot != std::string::npos)
     {
         size_t SecondDot = VersionPart.find('.', FirstDot + 1);
-        if (SecondDot != std::string::npos)
+        std::string MajorMinorStr = (SecondDot != std::string::npos) ? VersionPart.substr(0, SecondDot) : VersionPart;
+        try
         {
-            OutEngineVersion = VersionPart.substr(0, SecondDot);
+            EngineVersion = std::stod(MajorMinorStr);
         }
-        else
+        catch (...)
         {
-            OutEngineVersion = VersionPart;
+            EngineVersion = 0.0;
         }
     }
     else
     {
-        OutEngineVersion = VersionPart;
+        try
+        {
+            EngineVersion = std::stod(VersionPart);
+        }
+        catch (...)
+        {
+            EngineVersion = 0.0;
+        }
     }
 
     // Extract Changelist (CL) after the hyphen
@@ -67,10 +78,17 @@ void VersionInfo::InitParseVersion(std::string& OutEngineVersion, std::string& O
                 break;
             }
         }
-        OutChangelist = CLPart.empty() ? "0" : CLPart;
+        try
+        {
+            Changelist = CLPart.empty() ? 0 : std::stoi(CLPart);
+        }
+        catch (...)
+        {
+            Changelist = 0;
+        }
     }
     else
     {
-        OutChangelist = "0";
+        Changelist = 0;
     }
 }

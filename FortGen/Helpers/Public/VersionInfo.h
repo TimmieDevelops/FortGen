@@ -5,6 +5,9 @@
 class VersionInfo
 {
 public:
+    static double EngineVersion;
+    static int Changelist;
+
     static std::string GetVersionString();
-    static void InitParseVersion(std::string& OutEngineVersion, std::string& OutChangelist);
+    static void InitParseVersion();
 };
