@@ -15,7 +15,7 @@ public:
 
 class Scanner
 {
-private:
+public:
     static uintptr_t GetModuleBase()
     {
         return (uintptr_t)GetModuleHandle(NULL);
@@ -35,12 +35,13 @@ private:
         return ntHeaders->OptionalHeader.SizeOfImage;
     }
 
-public:
     static ScanResult FindString(const std::string& Str, bool bIsWide = true)
     {
         uintptr_t base = GetModuleBase();
         uint32_t size = GetModuleSize();
         if (!base || !size) return ScanResult(0);
+
+        uintptr_t strAddr = 0;
 
         if (bIsWide)
         {
@@ -52,7 +53,8 @@ public:
             {
                 if (memcmp(reinterpret_cast<const void*>(i), pattern, patternLen) == 0)
                 {
-                    return ScanResult(i);
+                    strAddr = i;
+                    break;
                 }
             }
         }
@@ -65,12 +67,34 @@ public:
             {
                 if (memcmp(reinterpret_cast<const void*>(i), pattern, patternLen) == 0)
                 {
-                    return ScanResult(i);
+                    strAddr = i;
+                    break;
                 }
             }
         }
 
-        return ScanResult(0);
+        if (!strAddr) return ScanResult(0);
+
+        // Find the cross-reference (XREF) to strAddr in the memory range.
+        // On x86 (32-bit), we scan for 4-byte absolute address references to strAddr.
+        for (uintptr_t i = base; i < base + size - 4; ++i)
+        {
+            if (*reinterpret_cast<const uintptr_t*>(i) == strAddr)
+            {
+                // Check if the preceding byte is a push instruction (0x68) or a mov instruction (0xB8 to 0xBF)
+                uint8_t prevByte = *reinterpret_cast<const uint8_t*>(i - 1);
+                if (prevByte == 0x68 || (prevByte >= 0xB8 && prevByte <= 0xBF))
+                {
+                    return ScanResult(i - 1);
+                }
+
+                // If not standard push/mov, still return the instruction start (usually i - 1)
+                return ScanResult(i - 1);
+            }
+        }
+
+        // Fallback to the string address itself if no XREF is found
+        return ScanResult(strAddr);
     }
 
     static ScanResult FindPattern(const std::string& Pattern)
