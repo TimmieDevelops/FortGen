@@ -38,11 +38,22 @@ bool Logger::Init(const std::string& filename)
     if (logFile.is_open())
         return true;
     
-    logFile.open(filename, std::ios::out | std::ios::app);
+    // Check if the log file exists. If it does, we explicitly clear all its text.
+    if (std::filesystem::exists(filename))
+    {
+        std::ofstream clearFile(filename, std::ios::out | std::ios::trunc);
+        if (clearFile.is_open())
+        {
+            clearFile.close();
+        }
+    }
+
+    // Open in truncate mode to ensure a clean write from 0 bytes
+    logFile.open(filename, std::ios::out | std::ios::trunc);
 
     if (logFile.is_open())
     {
-        logFile << "\n========================================\n";
+        logFile << "========================================\n";
         logFile << "[" << GetTimestamp() << "] [INFO] Logger initialized successfully.\n";
         logFile << "========================================\n";
         logFile.flush();
