@@ -142,6 +142,7 @@
     <ClInclude Include="Engine\Source\Runtime\CoreUObject\Public\UObject\UObjectArray.h" />
     <ClInclude Include="Engine\Source\Runtime\Core\Public\Containers\Array.h" />
     <ClInclude Include="Engine\Source\Runtime\Core\Public\Containers\PropertyMarcos.h" />
+    <ClInclude Include="Engine\Source\Runtime\Core\Public\Containers\UnrealString.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Helpers\Public\Address.h" />
     <ClInclude Include="Helpers\Public\Finder.h" />

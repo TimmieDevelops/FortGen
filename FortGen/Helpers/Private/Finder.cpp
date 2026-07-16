@@ -33,3 +33,15 @@ uintptr_t Finder::FindUKismetSystemLibrary_GetEngineVersion()
 
 	return AddressRef.GetAddress();
 }
+
+uintptr_t Finder::FindFMemory_Realloc()
+{
+	auto AddressRef = Scanner::FindPattern("8B 0D ? ? ? ? 85 C9 75 ? E8 ? ? ? ? 8B 0D ? ? ? ? FF 74 24 ? 8B 01 FF 74 24 ? FF 74 24"); // OT6.5(UE4.12)
+	if (!AddressRef.IsValid())
+	{
+		Logger::Log(LogLevel::Warning, "[Finder::FindFMemory_Realloc]: AddressRef is valid.");
+		return -1;
+	}
+
+	return AddressRef.GetAddress();
+}
