@@ -9,4 +9,4 @@
     static int32_t GetStructSize() { return Size; }
 
 #define DEFINE_DATAINDEX(Name, Offset, Type, StructSize) \
-    Type Get##Name(int32_t Index) const { return reinterpret_cast<Type>(*reinterpret_cast<uintptr_t*>(reinterpret_cast<uintptr_t>(this) + Offset) + StructSize * Index); }
+    Type Get##Name(size_t Index) const { return reinterpret_cast<Type>(*reinterpret_cast<uintptr_t*>(reinterpret_cast<uintptr_t>(this) + Offset) + StructSize * Index); }
