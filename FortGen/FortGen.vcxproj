@@ -139,11 +139,14 @@
   <ItemGroup>
     <ClInclude Include="framework.h" />
     <ClInclude Include="Helpers\Public\Utils.h" />
+    <ClInclude Include="Helpers\Public\Logger.h" />
+    <ClInclude Include="Helpers\Public\Scanner.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="Helpers\Private\Utils.cpp" />
+    <ClCompile Include="Helpers\Private\Logger.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
