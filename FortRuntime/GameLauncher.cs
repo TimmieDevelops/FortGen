@@ -391,6 +391,7 @@ namespace FortRuntime
                                 if (success)
                                 {
                                     FolderManager.SaveLastDLLPath(dllPath);
+                                    CrashReporter.StartMonitoring(proc.Id);
                                 }
                             }
                             else
