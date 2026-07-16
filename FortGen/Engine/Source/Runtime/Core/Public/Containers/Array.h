@@ -38,6 +38,11 @@ public:
 		return Index >= 0 && Index < ArrayNum;
 	}
 
+	bool IsValid() const
+	{
+		return Data != nullptr && ArrayNum > 0;
+	}
+
 	FORCEINLINE int32_t Num() const
 	{
 		return ArrayNum;

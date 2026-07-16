@@ -140,26 +140,32 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Engine\Source\Runtime\CoreUObject\Public\UObject\UObjectArray.h" />
+    <ClInclude Include="Engine\Source\Runtime\CoreUObject\Public\UObject\UObjectBase.h" />
     <ClInclude Include="Engine\Source\Runtime\Core\Public\Containers\Array.h" />
     <ClInclude Include="Engine\Source\Runtime\Core\Public\Containers\PropertyMarcos.h" />
     <ClInclude Include="Engine\Source\Runtime\Core\Public\Containers\UnrealString.h" />
     <ClInclude Include="Engine\Source\Runtime\Core\Public\HAL\UnrealMemory.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Kismet\KismetSystemLibrary.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Helpers\Public\Address.h" />
     <ClInclude Include="Helpers\Public\Finder.h" />
     <ClInclude Include="Helpers\Public\Logger.h" />
     <ClInclude Include="Helpers\Public\Scanner.h" />
     <ClInclude Include="Helpers\Public\Utils.h" />
+    <ClInclude Include="Helpers\Public\VersionInfo.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\CoreUObject\Private\UObject\UObjectArray.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Core\Private\HAL\UnrealMemory.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\Private\KismetSystemLibrary.cpp" />
     <ClCompile Include="Helpers\Private\Finder.cpp" />
     <ClCompile Include="Helpers\Private\Scanner.cpp" />
     <ClCompile Include="Helpers\Private\Utils.cpp" />
     <ClCompile Include="Helpers\Private\Logger.cpp" />
     <ClCompile Include="Helpers\Private\Address.cpp" />
+    <ClCompile Include="Helpers\Private\VersionInfo.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

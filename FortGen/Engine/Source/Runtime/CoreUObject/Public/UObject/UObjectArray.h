@@ -1,5 +1,7 @@
 #pragma once
 #include "framework.h"
+#include "../../../Core/Public/Containers/PropertyMarcos.h"
+#include "Helpers/Public/Address.h"
 
 /* FUObjectItem
 * Object: 0x0
@@ -23,6 +25,10 @@
 */
 struct FUObjectItem
 {
+	DEFINE_MEMBER(Object, Address::FUObjectItem_Object, class UObjectBase*)
+	DEFINE_MEMBER(ClusterAndFlags, Address::FUObjectItem_ClusterAndFlags, int32_t)
+	DEFINE_MEMBER(SerialNumber, Address::FUObjectItem_SerialNumber, int32_t)
+	DEFINE_STRUCTSIZE(Address::FUObjectItem_StructSize)
 };
 
 /**
@@ -31,6 +37,9 @@ struct FUObjectItem
 class FFixedUObjectArray
 {
 public:
+	DEFINE_MEMBER(Objects, Address::FFixedUObjectArray_Objects, FUObjectItem*)
+	DEFINE_MEMBER(MaxElements, Address::FFixedUObjectArray_MaxElements, int32_t)
+	DEFINE_MEMBER(NumElements, Address::FFixedUObjectArray_NumElements, int32_t)
 };
 
 /***
@@ -46,4 +55,8 @@ public:
 class FUObjectArray
 {
 public:
+	typedef FFixedUObjectArray TUObjectArray;
+	DEFINE_MEMBER(ObjObjects, Address::FUObjectArray_ObjObjects, TUObjectArray)
 };
+
+extern FUObjectArray* GUObjectArray;

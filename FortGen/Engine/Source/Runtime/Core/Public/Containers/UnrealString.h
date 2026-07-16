@@ -18,4 +18,15 @@ public:
 	{
 		return Data;
 	}
+
+	std::string ToString() const
+	{
+		if (IsValid())
+		{
+			std::wstring WideStr(Data);
+			return std::string(WideStr.begin(), WideStr.end());
+		}
+
+		return "None";
+	}
 };

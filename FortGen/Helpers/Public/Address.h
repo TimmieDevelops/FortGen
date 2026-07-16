@@ -16,5 +16,10 @@ namespace Address
 
 	inline uintptr_t FMemory_Realloc = 0;
 
+	inline uintptr_t UKismetSystemLibrary_GetEngineVersion = 0;
+
+	inline uintptr_t GUObjectArray = 0;
+
 	void SetupAddress();
+	void SetupOffsets();
 }

@@ -6,7 +6,11 @@ DWORD MainThread(HMODULE Module)
     Utils::InitConsole();
     if (Logger::Init()) Logger::Log(LogLevel::Info, "FortGen DLL loaded and initialized successfully.");
     Address::SetupAddress();
-    Logger::Log(LogLevel::Info, std::format("0x{:X}", Finder::FindFMemory_Realloc() - Scanner::GetModuleBase()));
+    VersionInfo::InitParseVersion();
+    Address::SetupOffsets();
+    GUObjectArray = reinterpret_cast<FUObjectArray*>(Scanner::GetModuleBase() + Address::GUObjectArray);
+    for (int i = 0; i < GUObjectArray->GetObjObjects().GetNumElements(); i++)
+        Logger::Log(LogLevel::Info, std::format("fmgnio gay={}", i).c_str());
     return 0;
 }
 

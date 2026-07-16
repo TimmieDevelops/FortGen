@@ -15,11 +15,14 @@
 #include "Helpers/Public/Scanner.h"
 #include "Helpers/Public/Finder.h"
 #include "Helpers/Public/Address.h"
+#include "Helpers/Public/VersionInfo.h"
 
 #include "Engine/Source/Runtime/Core/Public/Containers/PropertyMarcos.h"
 #include "Engine/Source/Runtime/Core/Public/Containers/Array.h"
 #include "Engine/Source/Runtime/Core/Public/Containers/UnrealString.h"
 #include "Engine/Source/Runtime/Core/Public/HAL/UnrealMemory.h"
 #include "Engine/Source/Runtime/CoreUObject/Public/UObject/UObjectArray.h" 
+#include "Engine/Source/Runtime/CoreUObject/Public/UObject/UObjectBase.h" 
+#include "Engine/Source/Runtime/Engine/Classes/Kismet/KismetSystemLibrary.h"
 
 #endif //PCH_H
