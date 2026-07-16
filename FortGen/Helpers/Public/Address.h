@@ -14,5 +14,7 @@ namespace Address
 
 	inline uintptr_t FUObjectArray_ObjObjects = 0;
 
+	inline uintptr_t FMemory_Realloc = 0;
+
 	void SetupAddress();
 }

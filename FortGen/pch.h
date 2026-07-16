@@ -15,6 +15,7 @@
 #include "Helpers/Public/Scanner.h"
 #include "Helpers/Public/Finder.h"
 #include "Helpers/Public/Address.h"
+#include "Helpers/Public/FMemory.h"
 
 #include "Engine/Source/Runtime/Core/Public/Containers/PropertyMarcos.h"
 #include "Engine/Source/Runtime/Core/Public/Containers/Array.h"
