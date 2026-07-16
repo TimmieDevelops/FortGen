@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <cstring>
 
 class ScanResult; // Forward declaration
 
@@ -39,6 +40,7 @@ private:
 public:
     ScanResult(uintptr_t Addr) : Address(Addr) {}
     uintptr_t GetAddress() const { return Address; }
+    bool IsValid() const { return Address != 0; }
 
     ScanResult ScanFor(const std::vector<uint8_t>& Bytes, bool bForward = true) const
     {
