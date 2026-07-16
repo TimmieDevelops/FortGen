@@ -10,7 +10,7 @@ DWORD MainThread(HMODULE Module)
     Address::SetupOffsets();
     // GUObjectArray = reinterpret_cast<FUObjectArray*>(Scanner::GetModuleBase() + Address::GUObjectArray);
     GUObjectArray = decltype(GUObjectArray)(Scanner::GetModuleBase() + Address::GUObjectArray);
-    Logger::Log(LogLevel::Info, std::format("NumElements=0x{:X}", GUObjectArray->GetObjObjects().GetObjects()->GetStructSize()).c_str());
+    Logger::Log(LogLevel::Info, std::format("NumElements={}", GUObjectArray->GetObjObjects().GetNumElements()).c_str());
     for (int i = 0; i < GUObjectArray->GetObjObjects().GetNumElements(); i++)
     {
         Logger::Log(LogLevel::Info, std::format("fmgnio gay={}", i).c_str());
