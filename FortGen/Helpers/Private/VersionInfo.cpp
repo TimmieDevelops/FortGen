@@ -18,7 +18,7 @@ std::string VersionInfo::GetVersionString()
     return VersionStr;
 }
 
-void VersionInfo::ParseVersion(std::string& OutEngineVersion, std::string& OutChangelist)
+void VersionInfo::InitParseVersion(std::string& OutEngineVersion, std::string& OutChangelist)
 {
     std::string FullVersion = GetVersionString();
     if (FullVersion.empty())

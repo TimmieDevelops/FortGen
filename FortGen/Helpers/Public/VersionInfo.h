@@ -6,5 +6,5 @@ class VersionInfo
 {
 public:
     static std::string GetVersionString();
-    static void ParseVersion(std::string& OutEngineVersion, std::string& OutChangelist);
+    static void InitParseVersion(std::string& OutEngineVersion, std::string& OutChangelist);
 };
