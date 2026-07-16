@@ -38,11 +38,12 @@ bool Logger::Init(const std::string& filename)
     if (logFile.is_open())
         return true;
     
-    logFile.open(filename, std::ios::out | std::ios::app);
+    // Open in truncate mode to clear any existing log contents on initialization
+    logFile.open(filename, std::ios::out | std::ios::trunc);
 
     if (logFile.is_open())
     {
-        logFile << "\n========================================\n";
+        logFile << "========================================\n";
         logFile << "[" << GetTimestamp() << "] [INFO] Logger initialized successfully.\n";
         logFile << "========================================\n";
         logFile.flush();
