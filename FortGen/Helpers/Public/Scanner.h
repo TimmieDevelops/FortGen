@@ -42,6 +42,25 @@ public:
     uintptr_t GetAddress() const { return Address; }
     bool IsValid() const { return Address != 0; }
 
+    ScanResult AbsolveOffset(int Offset = 1) const
+    {
+        if (!Address) return ScanResult(0);
+        return ScanResult(*reinterpret_cast<const uintptr_t*>(Address + Offset));
+    }
+
+    ScanResult AbsoluteOffset(int Offset = 1) const
+    {
+        if (!Address) return ScanResult(0);
+        return ScanResult(*reinterpret_cast<const uintptr_t*>(Address + Offset));
+    }
+
+    ScanResult RelativeOffset(int Offset = 1, int InstructionSize = 5) const
+    {
+        if (!Address) return ScanResult(0);
+        int32_t disp = *reinterpret_cast<const int32_t*>(Address + Offset);
+        return ScanResult(Address + InstructionSize + disp);
+    }
+
     ScanResult ScanFor(const std::vector<uint8_t>& Bytes, bool bForward = true) const
     {
         uintptr_t start = Address;
