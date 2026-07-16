@@ -17,7 +17,7 @@ namespace FortRuntime
         private static extern bool DebugActiveProcessStop(int dwProcessId);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool WaitForDebugEvent(ref DEBUG_EVENT lpDebugEvent, int dwMilliseconds);
+        private static extern bool WaitForDebugEvent(ref DEBUG_EVENT64 lpDebugEvent, int dwMilliseconds);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool ContinueDebugEvent(uint dwProcessId, uint dwThreadId, uint dwContinueStatus);
@@ -29,10 +29,7 @@ namespace FortRuntime
         private static extern IntPtr OpenThread(uint dwDesiredAccess, bool bInheritHandle, uint dwThreadId);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool GetThreadContext(IntPtr hThread, ref CONTEXT lpContext);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, [Out] byte[] lpBuffer, int dwSize, out IntPtr lpNumberOfBytesRead);
+        private static extern bool GetThreadContext(IntPtr hThread, ref CONTEXT64 lpContext);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool CloseHandle(IntPtr hObject);
@@ -60,6 +57,34 @@ namespace FortRuntime
             IntPtr CallbackParam
         );
 
+        [DllImport("dbghelp.dll", SetLastError = true, CharSet = CharSet.Ansi)]
+        private static extern bool SymInitialize(IntPtr hProcess, string? UserSearchPath, bool fInvadeProcess);
+
+        [DllImport("dbghelp.dll", SetLastError = true)]
+        private static extern bool SymCleanup(IntPtr hProcess);
+
+        [DllImport("dbghelp.dll", SetLastError = true, CharSet = CharSet.Ansi)]
+        private static extern bool SymFromAddr(IntPtr hProcess, ulong Address, ref ulong Displacement, ref SYMBOL_INFO Symbol);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Ansi)]
+        private static extern IntPtr GetModuleHandle(string lpModuleName);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Ansi)]
+        private static extern IntPtr GetProcAddress(IntPtr hModule, string procName);
+
+        [DllImport("dbghelp.dll", SetLastError = true)]
+        private static extern bool StackWalk64(
+            uint MachineType,
+            IntPtr hProcess,
+            IntPtr hThread,
+            ref STACKFRAME64 StackFrame,
+            ref CONTEXT64 ContextRecord,
+            IntPtr ReadMemoryRoutine,
+            IntPtr FunctionTableAccessRoutine,
+            IntPtr GetModuleBaseRoutine,
+            IntPtr TranslateAddress
+        );
+
         // Constants
         private const int INFINITE = -1;
         private const uint DBG_CONTINUE = 0x00010002;
@@ -77,9 +102,11 @@ namespace FortRuntime
         private const uint MB_OK = 0x00000000;
         private const uint MB_ICONERROR = 0x00000010;
 
-        // Structure definitions matching x86 layout
+        private const uint IMAGE_FILE_MACHINE_AMD64 = 0x8664;
+
+        // Structure definitions matching x64 layout
         [StructLayout(LayoutKind.Explicit)]
-        private struct DEBUG_EVENT
+        private struct DEBUG_EVENT64
         {
             [FieldOffset(0)]
             public uint dwDebugEventCode;
@@ -88,71 +115,79 @@ namespace FortRuntime
             [FieldOffset(8)]
             public uint dwThreadId;
 
-            [FieldOffset(12)]
-            public EXCEPTION_DEBUG_INFO Exception;
+            [FieldOffset(16)]
+            public EXCEPTION_DEBUG_INFO64 Exception;
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        private struct EXCEPTION_DEBUG_INFO
+        private struct EXCEPTION_DEBUG_INFO64
         {
-            public EXCEPTION_RECORD ExceptionRecord;
+            public EXCEPTION_RECORD64 ExceptionRecord;
             public uint dwFirstChance;
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        private struct EXCEPTION_RECORD
+        private struct EXCEPTION_RECORD64
         {
             public uint ExceptionCode;
             public uint ExceptionFlags;
             public IntPtr ExceptionRecordPtr;
             public IntPtr ExceptionAddress;
             public uint NumberParameters;
+            public uint __unusedAlignment;
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 15)]
-            public uint[] ExceptionInformation;
+            public ulong[] ExceptionInformation;
         }
 
-        [StructLayout(LayoutKind.Sequential)]
-        private struct CONTEXT
+        [StructLayout(LayoutKind.Sequential, Pack = 16)]
+        private struct CONTEXT64
         {
+            public ulong P1Home;
+            public ulong P2Home;
+            public ulong P3Home;
+            public ulong P4Home;
+            public ulong P5Home;
+            public ulong P6Home;
+
             public uint ContextFlags;
+            public uint MxCsr;
 
-            // Debug registers
-            public uint Dr0;
-            public uint Dr1;
-            public uint Dr2;
-            public uint Dr3;
-            public uint Dr6;
-            public uint Dr7;
-
-            // Floating point state
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 112)]
-            public byte[] FloatSave;
-
-            // Segment registers
-            public uint SegGs;
-            public uint SegFs;
-            public uint SegEs;
-            public uint SegDs;
-
-            // Integer registers
-            public uint Edi;
-            public uint Esi;
-            public uint Ebx;
-            public uint Edx;
-            public uint Ecx;
-            public uint Eax;
-
-            // Control registers
-            public uint Ebp;
-            public uint Eip;
-            public uint SegCs;
+            public ushort SegCs;
+            public ushort SegDs;
+            public ushort SegEs;
+            public ushort SegFs;
+            public ushort SegGs;
+            public ushort SegSs;
             public uint EFlags;
-            public uint Esp;
-            public uint SegSs;
 
-            // Extended registers
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 512)]
-            public byte[] ExtendedRegisters;
+            public ulong Dr0;
+            public ulong Dr1;
+            public ulong Dr2;
+            public ulong Dr3;
+            public ulong Dr6;
+            public ulong Dr7;
+
+            public ulong Rax;
+            public ulong Rcx;
+            public ulong Rdx;
+            public ulong Rbx;
+            public ulong Rsp;
+            public ulong Rbp;
+            public ulong Rsi;
+            public ulong Rdi;
+            public ulong R8;
+            public ulong R9;
+            public ulong R10;
+            public ulong R11;
+            public ulong R12;
+            public ulong R13;
+            public ulong R14;
+            public ulong R15;
+
+            public ulong Rip;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 976)]
+            public byte[] Dummy;
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
@@ -170,6 +205,54 @@ namespace FortRuntime
             public string szModule;
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
             public string szExePath;
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+        private struct SYMBOL_INFO
+        {
+            public uint SizeOfStruct;
+            public uint TypeIndex;
+            public ulong Reserved1;
+            public ulong Reserved2;
+            public uint Index;
+            public uint Size;
+            public ulong ModBase;
+            public uint Flags;
+            public ulong Value;
+            public ulong Address;
+            public uint Register;
+            public uint Scope;
+            public uint Tag;
+            public uint NameLen;
+            public uint MaxNameLen;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+            public string Name;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct STACKFRAME64
+        {
+            public ADDRESS64 AddrPC;
+            public ADDRESS64 AddrReturn;
+            public ADDRESS64 AddrFrame;
+            public ADDRESS64 AddrStack;
+            public ADDRESS64 AddrBSTR;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+            public ulong[] Params;
+            public bool Far;
+            public bool Virtual;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
+            public ulong[] Reserved;
+            public ADDRESS64 AddrKDHelp;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ADDRESS64
+        {
+            public ulong Offset;
+            public ushort Segment;
+            public ushort Reserved;
+            public int Mode;
         }
 
         public static void StartMonitoring(int processId)
@@ -192,7 +275,7 @@ namespace FortRuntime
             bool running = true;
             while (running)
             {
-                DEBUG_EVENT debugEvent = new DEBUG_EVENT();
+                DEBUG_EVENT64 debugEvent = new DEBUG_EVENT64();
                 if (WaitForDebugEvent(ref debugEvent, INFINITE))
                 {
                     uint continueStatus = DBG_CONTINUE;
@@ -296,7 +379,7 @@ namespace FortRuntime
             };
         }
 
-        private static void GenerateCrashReport(int processId, DEBUG_EVENT debugEvent)
+        private static void GenerateCrashReport(int processId, DEBUG_EVENT64 debugEvent)
         {
             string crashId = Guid.NewGuid().ToString().ToUpper();
             string crashDir = Path.Combine(AppContext.BaseDirectory, "Crashes", crashId);
@@ -315,60 +398,82 @@ namespace FortRuntime
 
             try
             {
+                // Initialize dbghelp symbols for the remote process
+                SymInitialize(hProcess, null, true);
+
                 // Generate FortniteGame.txt
                 using (StreamWriter writer = new StreamWriter(txtPath, false, Encoding.UTF8))
                 {
-                    writer.WriteLine($"Crash Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-
                     var exception = debugEvent.Exception.ExceptionRecord;
-                    writer.WriteLine($"Exception Code: 0x{exception.ExceptionCode:X8} ({GetExceptionCodeString(exception.ExceptionCode)})");
-                    writer.WriteLine($"Exception Address: 0x{exception.ExceptionAddress.ToInt64():X8}");
+                    string exceptionName = GetExceptionCodeString(exception.ExceptionCode);
+                    writer.WriteLine($"[CrashReporter] Caught unhandled exception (Code: {exceptionName})");
 
-                    writer.WriteLine("\n[Process Information]");
-                    writer.WriteLine($"Process ID: {processId}");
-
-                    try
+                    if (exception.ExceptionCode == 0xC0000005) // EXCEPTION_ACCESS_VIOLATION
                     {
-                        using (Process proc = Process.GetProcessById(processId))
+                        string op = "read";
+                        if (exception.NumberParameters >= 1)
                         {
-                            writer.WriteLine($"Process Path: {proc.MainModule?.FileName}");
+                            ulong opCode = exception.ExceptionInformation[0];
+                            if (opCode == 1) op = "write";
+                            else if (opCode == 8) op = "execute";
                         }
-                    }
-                    catch { }
 
-                    // Loaded Modules
-                    writer.WriteLine("\n[Loaded Modules]");
-                    var modules = GetLoadedModules(processId);
-                    foreach (var mod in modules)
-                    {
-                        writer.WriteLine($"0x{mod.BaseAddr.ToInt64():X8} - 0x{(mod.BaseAddr.ToInt64() + mod.Size):X8}  {mod.Name} ({mod.Path})");
+                        long faultingAddress = 0;
+                        if (exception.NumberParameters >= 2)
+                        {
+                            faultingAddress = (long)exception.ExceptionInformation[1];
+                        }
+                        writer.WriteLine($"- Trying to {op} 0x{faultingAddress:X16}");
                     }
+
+                    writer.WriteLine(); // Blank line before the stack trace
+
+                    var modules = GetLoadedModules(processId);
 
                     // Stack Trace
-                    writer.WriteLine("\n[Stack Trace]");
                     IntPtr hThread = OpenThread(THREAD_GET_CONTEXT, false, debugEvent.dwThreadId);
                     if (hThread != IntPtr.Zero)
                     {
                         try
                         {
-                            CONTEXT ctx = new CONTEXT();
-                            ctx.ContextFlags = 0x00010007; // CONTEXT_FULL (x86)
+                            CONTEXT64 ctx = new CONTEXT64();
+                            ctx.ContextFlags = 0x00100007; // CONTEXT_FULL (x64)
                             if (GetThreadContext(hThread, ref ctx))
                             {
-                                IntPtr currentEbp = (IntPtr)ctx.Ebp;
-                                IntPtr currentEip = (IntPtr)ctx.Eip;
+                                STACKFRAME64 frame = new STACKFRAME64();
+                                frame.AddrPC.Offset = ctx.Rip;
+                                frame.AddrPC.Mode = 3; // AddrModeFlat
+                                frame.AddrFrame.Offset = ctx.Rbp;
+                                frame.AddrFrame.Mode = 3;
+                                frame.AddrStack.Offset = ctx.Rsp;
+                                frame.AddrStack.Mode = 3;
 
-                                for (int i = 0; i < 64; i++)
+                                IntPtr hDbgHelp = GetModuleHandle("dbghelp.dll");
+                                IntPtr pSymFunctionTableAccess64 = GetProcAddress(hDbgHelp, "SymFunctionTableAccess64");
+                                IntPtr pSymGetModuleBase64 = GetProcAddress(hDbgHelp, "SymGetModuleBase64");
+
+                                int depth = 0;
+                                while (StackWalk64(
+                                    IMAGE_FILE_MACHINE_AMD64,
+                                    hProcess,
+                                    hThread,
+                                    ref frame,
+                                    ref ctx,
+                                    IntPtr.Zero,
+                                    pSymFunctionTableAccess64,
+                                    pSymGetModuleBase64,
+                                    IntPtr.Zero))
                                 {
-                                    if (currentEip == IntPtr.Zero)
+                                    if (frame.AddrPC.Offset == 0)
                                         break;
 
+                                    ulong currentEip = frame.AddrPC.Offset;
                                     string modName = "Unknown";
                                     long offset = 0;
 
                                     foreach (var mod in modules)
                                     {
-                                        long ipVal = currentEip.ToInt64();
+                                        long ipVal = (long)currentEip;
                                         long baseVal = mod.BaseAddr.ToInt64();
                                         if (ipVal >= baseVal && ipVal < baseVal + mod.Size)
                                         {
@@ -378,26 +483,29 @@ namespace FortRuntime
                                         }
                                     }
 
-                                    if (modName != "Unknown")
+                                    string symbolName = "[unknown]";
+                                    ulong displacement = 0;
+                                    SYMBOL_INFO symbol = new SYMBOL_INFO();
+                                    symbol.SizeOfStruct = 88;
+                                    symbol.MaxNameLen = 256;
+
+                                    if (SymFromAddr(hProcess, currentEip, ref displacement, ref symbol))
                                     {
-                                        writer.WriteLine($"  Frame {i}: 0x{currentEip.ToInt64():X8} ({modName} + 0x{offset:X})");
-                                    }
-                                    else
-                                    {
-                                        writer.WriteLine($"  Frame {i}: 0x{currentEip.ToInt64():X8}");
+                                        symbolName = $"[{symbol.Name}]";
                                     }
 
-                                    // Read next frame
-                                    byte[] frameBuf = new byte[8];
-                                    if (ReadProcessMemory(hProcess, currentEbp, frameBuf, 8, out IntPtr bytesRead) && bytesRead.ToInt32() == 8)
+                                    if (modName != "Unknown")
                                     {
-                                        currentEbp = (IntPtr)BitConverter.ToUInt32(frameBuf, 0);
-                                        currentEip = (IntPtr)BitConverter.ToUInt32(frameBuf, 4);
+                                        writer.WriteLine($"0x{currentEip:X16} ({modName}+0x{offset:X}): {symbolName}");
                                     }
                                     else
                                     {
-                                        break;
+                                        writer.WriteLine($"0x{currentEip:X16} (Unknown+0x0): {symbolName}");
                                     }
+
+                                    depth++;
+                                    if (depth > 128)
+                                        break;
                                 }
                             }
                             else
@@ -436,6 +544,7 @@ namespace FortRuntime
             }
             finally
             {
+                SymCleanup(hProcess);
                 CloseHandle(hProcess);
             }
         }
