@@ -145,6 +145,7 @@
     <ClInclude Include="Engine\Source\Runtime\Core\Public\Containers\PropertyMarcos.h" />
     <ClInclude Include="Engine\Source\Runtime\Core\Public\Containers\UnrealString.h" />
     <ClInclude Include="Engine\Source\Runtime\Core\Public\HAL\UnrealMemory.h" />
+    <ClInclude Include="Engine\Source\Runtime\Core\Public\UObject\NameTypes.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Kismet\KismetSystemLibrary.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Helpers\Public\Address.h" />
@@ -159,6 +160,7 @@
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="Engine\Source\Runtime\CoreUObject\Private\UObject\UObjectArray.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Core\Private\HAL\UnrealMemory.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Core\Private\UObject\UnrealNames.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Private\KismetSystemLibrary.cpp" />
     <ClCompile Include="Helpers\Private\Finder.cpp" />
     <ClCompile Include="Helpers\Private\Scanner.cpp" />

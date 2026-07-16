@@ -38,6 +38,7 @@ class FFixedUObjectArray
 {
 public:
 	DEFINE_MEMBER(Objects, Address::FFixedUObjectArray_Objects, FUObjectItem*)
+	DEFINE_DATAINDEX(Objects, Address::FFixedUObjectArray_Objects, FUObjectItem*, FUObjectItem::GetStructSize())
 	DEFINE_MEMBER(MaxElements, Address::FFixedUObjectArray_MaxElements, int32_t)
 	DEFINE_MEMBER(NumElements, Address::FFixedUObjectArray_NumElements, int32_t)
 };

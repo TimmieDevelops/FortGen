@@ -45,3 +45,15 @@ uintptr_t Finder::FindFMemory_Realloc()
 
 	return AddressRef.GetAddress();
 }
+
+uintptr_t Finder::FindFName_ToString()
+{
+	auto AddressRef = Scanner::FindPattern("53 56 57 8B D9 E8 ? ? ? ? 8B 3B"); // OT6.5 (UE4.12)
+	if (!AddressRef.IsValid())
+	{
+		Logger::Log(LogLevel::Warning, "[Finder::FindFName_ToString]: AddressRef is valid.");
+		return -1;
+	}
+
+	return AddressRef.GetAddress();
+}

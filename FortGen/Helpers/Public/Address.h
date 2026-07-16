@@ -20,6 +20,14 @@ namespace Address
 
 	inline uintptr_t GUObjectArray = 0;
 
+	inline uintptr_t FName_ToString = 0;
+
+	inline uintptr_t UObjectBase_ObjectFlags = 0;
+	inline uintptr_t UObjectBase_InternalIndex = 0;
+	inline uintptr_t UObjectBase_ClassPrivate = 0;
+	inline uintptr_t UObjectBase_NamePrivate = 0;
+	inline uintptr_t UObjectBase_OuterPrivate = 0;
+
 	void SetupAddress();
 	void SetupOffsets();
 }

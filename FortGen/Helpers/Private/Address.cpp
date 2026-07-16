@@ -12,6 +12,9 @@ void Address::SetupAddress()
 
 	GUObjectArray = Finder::FindGUObjectArray() - ImageBase;
 	Logger::Log(LogLevel::Info, std::format("GUObjectArray: 0x{:X}", GUObjectArray).c_str());
+
+	FName_ToString = Finder::FindFName_ToString() - ImageBase;
+	Logger::Log(LogLevel::Info, std::format("FName::ToString: 0x{:X}", FName_ToString).c_str());
 }
 
 void Address::SetupOffsets()
@@ -39,5 +42,16 @@ void Address::SetupOffsets()
 
 		FUObjectItem_Object = 0x0;
 		Logger::Log(LogLevel::Info, std::format("FUObjectItem::Object: 0x{:X}", FUObjectItem_Object).c_str());
+
+		UObjectBase_ObjectFlags = 0x4;
+		Logger::Log(LogLevel::Info, std::format("UObjectBase::ObjectFlags: 0x{:X}", UObjectBase_ObjectFlags).c_str());
+		UObjectBase_InternalIndex = 0x8;
+		Logger::Log(LogLevel::Info, std::format("UObjectBase::InternalIndex: 0x{:X}", UObjectBase_InternalIndex).c_str());
+		UObjectBase_ClassPrivate = 0xC;
+		Logger::Log(LogLevel::Info, std::format("UObjectBase::ClassPrivate: 0x{:X}", UObjectBase_ClassPrivate).c_str());
+		UObjectBase_NamePrivate = 0x10;
+		Logger::Log(LogLevel::Info, std::format("UObjectBase::NamePrivate: 0x{:X}", UObjectBase_NamePrivate).c_str());
+		UObjectBase_OuterPrivate = 0x18;
+		Logger::Log(LogLevel::Info, std::format("UObjectBase::OuterPrivate: 0x{:X}", UObjectBase_OuterPrivate).c_str());
 	}
 }

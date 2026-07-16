@@ -7,4 +7,5 @@ public:
 	static uintptr_t FindGUObjectArray();
 	static uintptr_t FindUKismetSystemLibrary_GetEngineVersion();
 	static uintptr_t FindFMemory_Realloc();
+	static uintptr_t FindFName_ToString();
 };

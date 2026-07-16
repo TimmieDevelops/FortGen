@@ -21,7 +21,8 @@
 #include "Engine/Source/Runtime/Core/Public/Containers/Array.h"
 #include "Engine/Source/Runtime/Core/Public/Containers/UnrealString.h"
 #include "Engine/Source/Runtime/Core/Public/HAL/UnrealMemory.h"
-#include "Engine/Source/Runtime/CoreUObject/Public/UObject/UObjectArray.h" 
+#include "Engine/Source/Runtime/Core/Public/UObject/NameTypes.h"
+#include "Engine/Source/Runtime/CoreUObject/Public/UObject/UObjectArray.h"
 #include "Engine/Source/Runtime/CoreUObject/Public/UObject/UObjectBase.h" 
 #include "Engine/Source/Runtime/Engine/Classes/Kismet/KismetSystemLibrary.h"
 
