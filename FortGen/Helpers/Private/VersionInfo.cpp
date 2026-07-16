@@ -1,7 +1,7 @@
 #include "pch.h"
 
 double VersionInfo::EngineVersion = 0.0;
-int VersionInfo::Changelist = 0;
+int VersionInfo::CL = 0;
 
 std::string VersionInfo::GetVersionString()
 {
@@ -27,7 +27,7 @@ void VersionInfo::InitParseVersion()
     if (FullVersion.empty())
     {
         EngineVersion = 0.0;
-        Changelist = 0;
+        CL = 0;
         return;
     }
 
@@ -80,15 +80,15 @@ void VersionInfo::InitParseVersion()
         }
         try
         {
-            Changelist = CLPart.empty() ? 0 : std::stoi(CLPart);
+            CL = CLPart.empty() ? 0 : std::stoi(CLPart);
         }
         catch (...)
         {
-            Changelist = 0;
+            CL = 0;
         }
     }
     else
     {
-        Changelist = 0;
+        CL = 0;
     }
 }
