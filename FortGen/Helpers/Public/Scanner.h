@@ -14,6 +14,12 @@ class ScanResult; // Forward declaration
 class Scanner
 {
 public:
+    struct MemoryRange
+    {
+        uintptr_t Start;
+        uintptr_t End;
+    };
+
     static uintptr_t GetModuleBase()
     {
         return (uintptr_t)GetModuleHandle(NULL);
@@ -31,6 +37,36 @@ public:
         if (ntHeaders->Signature != IMAGE_NT_SIGNATURE) return 0;
 
         return ntHeaders->OptionalHeader.SizeOfImage;
+    }
+
+    static std::vector<MemoryRange> GetExecutableRanges()
+    {
+        std::vector<MemoryRange> ranges;
+        uintptr_t base = GetModuleBase();
+        if (!base) return ranges;
+
+        auto dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(base);
+        if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE) return ranges;
+
+        auto ntHeaders = reinterpret_cast<PIMAGE_NT_HEADERS>(base + dosHeader->e_lfanew);
+        if (ntHeaders->Signature != IMAGE_NT_SIGNATURE) return ranges;
+
+        auto sectionHeader = IMAGE_FIRST_SECTION(ntHeaders);
+        for (int i = 0; i < ntHeaders->FileHeader.NumberOfSections; ++i)
+        {
+            auto& section = sectionHeader[i];
+            if (section.Characteristics & IMAGE_SCN_MEM_EXECUTE)
+            {
+                ranges.push_back({ base + section.VirtualAddress, base + section.VirtualAddress + section.Misc.VirtualSize });
+            }
+        }
+
+        if (ranges.empty())
+        {
+            ranges.push_back({ base, base + ntHeaders->OptionalHeader.SizeOfImage });
+        }
+
+        return ranges;
     }
 
     static ScanResult FindString(const std::string& Str, bool bIsWide = true, bool bForward = true);
@@ -215,10 +251,6 @@ inline ScanResult Scanner::FindString(const std::string& Str, bool bIsWide, bool
 
 inline ScanResult Scanner::FindPattern(const std::string& Pattern)
 {
-    uintptr_t base = GetModuleBase();
-    uint32_t size = GetModuleSize();
-    if (!base || !size) return ScanResult(0);
-
     std::vector<int> bytes;
     std::string currentByte;
     std::stringstream ss(Pattern);
@@ -237,21 +269,29 @@ inline ScanResult Scanner::FindPattern(const std::string& Pattern)
     if (bytes.empty()) return ScanResult(0);
 
     size_t patternLen = bytes.size();
-    for (uintptr_t i = base; i < base + size - patternLen; ++i)
-    {
-        bool found = true;
-        for (size_t j = 0; j < patternLen; ++j)
-        {
-            if (bytes[j] != -1 && reinterpret_cast<const uint8_t*>(i)[j] != bytes[j])
-            {
-                found = false;
-                break;
-            }
-        }
+    auto ranges = Scanner::GetExecutableRanges();
 
-        if (found)
+    for (const auto& range : ranges)
+    {
+        if (range.End < range.Start || (range.End - range.Start) < patternLen)
+            continue;
+
+        for (uintptr_t i = range.Start; i < range.End - patternLen; ++i)
         {
-            return ScanResult(i);
+            bool found = true;
+            for (size_t j = 0; j < patternLen; ++j)
+            {
+                if (bytes[j] != -1 && reinterpret_cast<const uint8_t*>(i)[j] != bytes[j])
+                {
+                    found = false;
+                    break;
+                }
+            }
+
+            if (found)
+            {
+                return ScanResult(i);
+            }
         }
     }
 
