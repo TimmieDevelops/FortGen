@@ -11,5 +11,14 @@
 #include "framework.h"
 
 #include "Helpers/Public/Utils.h"
+#include "Helpers/Public/Logger.h"
+#include "Helpers/Public/Scanner.h"
+#include "Helpers/Public/Finder.h"
+#include "Helpers/Public/Address.h"
+
+#include "Engine/Source/Runtime/Core/Public/Containers/PropertyMarcos.h"
+#include "Engine/Source/Runtime/Core/Public/Containers/Array.h"
+#include "Engine/Source/Runtime/Core/Public/Containers/UnrealString.h"
+#include "Engine/Source/Runtime/CoreUObject/Public/UObject/UObjectArray.h" 
 
 #endif //PCH_H

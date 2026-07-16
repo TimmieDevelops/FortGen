@@ -129,6 +129,8 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>./</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -137,13 +139,23 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Engine\Source\Runtime\CoreUObject\Public\UObject\UObjectArray.h" />
+    <ClInclude Include="Engine\Source\Runtime\Core\Public\Containers\Array.h" />
+    <ClInclude Include="Engine\Source\Runtime\Core\Public\Containers\PropertyMarcos.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="Helpers\Public\Address.h" />
+    <ClInclude Include="Helpers\Public\Finder.h" />
+    <ClInclude Include="Helpers\Public\Logger.h" />
+    <ClInclude Include="Helpers\Public\Scanner.h" />
     <ClInclude Include="Helpers\Public\Utils.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="Helpers\Private\Finder.cpp" />
+    <ClCompile Include="Helpers\Private\Scanner.cpp" />
     <ClCompile Include="Helpers\Private\Utils.cpp" />
+    <ClCompile Include="Helpers\Private\Logger.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
