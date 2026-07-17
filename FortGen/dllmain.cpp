@@ -10,19 +10,6 @@ DWORD MainThread(HMODULE Module)
     Address::SetupOffsets();
     // GUObjectArray = reinterpret_cast<FUObjectArray*>(Scanner::GetModuleBase() + Address::GUObjectArray);
     GUObjectArray = decltype(GUObjectArray)(Scanner::GetModuleBase() + Address::GUObjectArray);
-    Logger::Log(LogLevel::Info, std::format("NumElements={}", GUObjectArray->GetObjObjects().GetNumElements()).c_str());
-    for (int i = 0; i < GUObjectArray->GetObjObjects().GetNumElements(); i++)
-    {
-        Logger::Log(LogLevel::Info, std::format("fmgnio gay={}", i).c_str());
-        UObjectBase* Object = GUObjectArray->GetObjObjects().GetObjects(i)->GetObjectW();
-        if (!Object)
-        {
-            Logger::Log(LogLevel::Info, "Object is null!");
-            continue;
-        }
-
-        Logger::Log(LogLevel::Info, Object->GetNamePrivate().ToString());
-    }
     return 0;
 }
 
