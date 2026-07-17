@@ -20,6 +20,8 @@ DWORD MainThread(HMODULE Module)
             Logger::Log(LogLevel::Info, "Object is null!");
             continue;
         }
+
+        Logger::Log(LogLevel::Info, Object->GetNamePrivate().ToString());
     }
     return 0;
 }
