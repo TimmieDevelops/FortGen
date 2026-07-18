@@ -38,7 +38,7 @@ bool UObjectBaseUtility::IsA(const UClass* SomeBase) const
 
     for (UStruct* SuperStruct = ClassPrivate; SuperStruct; SuperStruct = SuperStruct->GetSuperStruct())
     {
-        if (SuperStruct == ClassPrivate)
+        if (SuperStruct == SomeBase)
             return true;
     }
 

@@ -91,11 +91,14 @@ void Dumper::InitMinStructSize()
 
 					for (UField* Child = Struct->GetChildren(); Child; Child = Child->GetNext())
 					{
+						if (!Child)
+							continue;
+
 						if (Child->IsA(UProperty::StaticClass()))
 						{
-							UProperty* Property = Child->Cast<UProperty>();
-							if (MinOffset == -1 || Property->GetOffset_Internal() < MinOffset)
-								MinOffset = Property->GetOffset_Internal();
+							UProperty* Property = (UProperty*)Child;
+							/*if (MinOffset == -1 || Property->GetOffset_Internal() < MinOffset)
+								MinOffset = Property->GetOffset_Internal();*/
 						}
 					}
 
@@ -104,21 +107,6 @@ void Dumper::InitMinStructSize()
 						if (MinOffset < MinStructSize[Struct->GetSuperStruct()])
 						{
 							MinStructSize[Struct->GetSuperStruct()] = MinOffset;
-							bChanged = true;
-						}
-					}
-
-					if (MinOffset != -1)
-					{
-						auto It = MinStructSize.find(Super);
-						if (It == MinStructSize.end())
-						{
-							MinStructSize[Super] = MinOffset;
-							bChanged = true;
-						}
-						else if (MinOffset < It->second)
-						{
-							It->second = MinOffset;
 							bChanged = true;
 						}
 					}
