@@ -365,6 +365,8 @@ std::string Dumper::GetPropertyType(UProperty* Property)
 	if (!Property)
 		return "Unknown";
 
+	Logger::Log(LogLevel::Info, Property->GetFullName());
+
 	if (Property->IsA(UBoolProperty::StaticClass()))
 		return "bool";
 	
@@ -385,9 +387,9 @@ std::string Dumper::GetPropertyType(UProperty* Property)
 	if (Property->IsA(UByteProperty::StaticClass()))
 	{
 		UByteProperty* ByteProperty = Property->Cast<UByteProperty>();
-		if (!ByteProperty) return "Unknown";
+		if (!ByteProperty) return "uint8_t";
 		if (ByteProperty->GetEnum()) return SanitizeName(ByteProperty->GetEnum()->GetName());
-		return "Unknown";
+		return "uint8_t";
 	}
 
 	if (Property->IsA(UObjectProperty::StaticClass()))
@@ -696,7 +698,7 @@ void Dumper::GenerateScriptStruct(UScriptStruct* ScriptStruct, std::ostream& Fil
 	if (ScriptStructsFullName.find(ScriptStruct->GetFullName()) != ScriptStructsFullName.end())
 		return;
 
-	std::string StructName = SanitizeName(ScriptStruct->GetName());
+	std::string StructName = SanitizeName(ScriptStruct->GetNameCPP());
 	if (GeneratedNamesInPackage.count(StructName))
 		return;
 
@@ -771,7 +773,7 @@ void Dumper::GenerateScriptStruct(UScriptStruct* ScriptStruct, std::ostream& Fil
 				if (LastBitfieldByteOffset != -1 && LastBitfieldByteOffset != Property.ByteOffset)
 					Buffer << "\t" << SDKMC_SSCOL("uint8_t", 50) << " " << SDKMC_SSHEX(": 0;", 50) << "\n";
 
-				Buffer << "\t" << SDKMC_SSHEX("uint8_t", 50) << " " << SDKMC_SSCOL(PropertyName + " : 1;", 50) << " // " << SDKMC_SSHEX(Offset, 4) << " (" << SDKMC_SSHEX(Size, 4) << ") [BITFIELD] [ByteOffset: " << SDKMC_SSHEX(Property.ByteOffset, 2) << "] [Mask: " << SDKMC_SSHEX(Property.ByteMask, 2) << "]\n";
+				Buffer << "\t" << SDKMC_SSCOL("uint8_t", 50) << " " << SDKMC_SSCOL(PropertyName + " : 1;", 50) << " // " << SDKMC_SSHEX(Offset, 4) << " (" << SDKMC_SSHEX(Size, 4) << ") [BITFIELD] [ByteOffset: " << SDKMC_SSHEX(Property.ByteOffset, 2) << "] [Mask: " << SDKMC_SSHEX(Property.ByteMask, 2) << "]\n";
 
 				LastBitfieldByteOffset = Property.ByteOffset;
 			}
