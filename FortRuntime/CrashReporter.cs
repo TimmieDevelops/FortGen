@@ -320,6 +320,19 @@ namespace FortRuntime
                                     Console.WriteLine($"[CrashReporter] Error generating crash report: {ex.Message}");
                                 }
 
+                                // Terminate the target process so it exits completely, unloading the DLL and releasing the file lock
+                                try
+                                {
+                                    using (var proc = Process.GetProcessById(processId))
+                                    {
+                                        proc.Kill();
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine($"[CrashReporter] Failed to kill crashed process: {ex.Message}");
+                                }
+
                                 continueStatus = DBG_EXCEPTION_NOT_HANDLED;
                                 running = false; // Stop monitoring and detach/terminate
                             }

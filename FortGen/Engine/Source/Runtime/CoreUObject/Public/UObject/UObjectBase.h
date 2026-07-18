@@ -22,3 +22,24 @@ public:
 	DEFINE_MEMBER(NamePrivate, Address::UObjectBase_NamePrivate, FName)
 	DEFINE_MEMBER(OuterPrivate, Address::UObjectBase_OuterPrivate, class UObject*)
 };
+
+class UPackage : public UObjectBase {};
+
+class UObject : public UObjectBase
+{
+public:
+	std::string GetName() const;
+	std::string GetFullName() const;
+	std::string GetPathName() const;
+	void GetPathName(const UObject* StopOuter, std::string& ResultString) const;
+	class UPackage* GetOutermost() const;
+};
+
+class UClass : public UObject
+{
+public:
+	class UObject* GetDefaultObject() const;
+};
+
+class UObject* StaticFindObject(class UClass* Class, class UObject* InOuter, const wchar_t* Name, bool ExactClass = false);
+class UObject* StaticFindObject(class UClass* Class, class UObject* InOuter, const char* Name, bool ExactClass = false);
