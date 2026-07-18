@@ -593,8 +593,8 @@ namespace FortRuntime
 
                                     // 3. Write EXCEPTION_POINTERS (ExceptionRecord, ContextRecord)
                                     byte[] pointersBytes = new byte[8];
-                                    Array.Copy(BitConverter.GetBytes(remoteExceptionRecord.ToInt32()), 0, pointersBytes, 0, 4);
-                                    Array.Copy(BitConverter.GetBytes(remoteContext.ToInt32()), 0, pointersBytes, 4, 4);
+                                    Array.Copy(BitConverter.GetBytes((uint)remoteExceptionRecord.ToInt64()), 0, pointersBytes, 0, 4);
+                                    Array.Copy(BitConverter.GetBytes((uint)remoteContext.ToInt64()), 0, pointersBytes, 4, 4);
                                     WriteProcessMemory(hProcess, remoteExceptionPointers, pointersBytes, 8, out _);
 
                                     // Generate perfect UE4Minidump.dmp with remote pointers

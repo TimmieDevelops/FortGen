@@ -23,6 +23,10 @@
 	{ \
 		static class ClassName* DefaultObj = nullptr; \
 		if (!DefaultObj) \
-			DefaultObj = (class ClassName*)StaticClass()->GetDefaultObject(); \
+		{ \
+			class UClass* Clss = StaticClass(); \
+			if (Clss) \
+				DefaultObj = (class ClassName*)Clss->GetDefaultObject(); \
+		} \
 		return DefaultObj; \
 	}
