@@ -133,8 +133,16 @@ void Dumper::ProcessPackages(std::filesystem::path& FolderPath)
 			std::ostringstream Buffer;
 			ProcessEnums(Objects, PackageName, Buffer);
 			std::filesystem::path Path = FolderPath / EnumFileName;
-			std::ofstream File(Path);
-			File << Buffer.str();
+			if (!Buffer.str().empty())
+			{
+				std::ofstream File(Path);
+				File << Buffer.str();
+			}
+			else
+			{
+				if (std::filesystem::exists(Path))
+					std::filesystem::remove(Path);
+			}
 		}
 
 		std::string StructFileName = "FN_" + PackageName + "_structs.h";
@@ -143,8 +151,16 @@ void Dumper::ProcessPackages(std::filesystem::path& FolderPath)
 			std::ostringstream Buffer;
 			ProcessScriptStructs(Objects, PackageName, Buffer);
 			std::filesystem::path Path = FolderPath / StructFileName;
-			std::ofstream File(Path);
-			File << Buffer.str();
+			if (!Buffer.str().empty())
+			{
+				std::ofstream File(Path);
+				File << Buffer.str();
+			}
+			else
+			{
+				if (std::filesystem::exists(Path))
+					std::filesystem::remove(Path);
+			}
 		}
 	}
 }
