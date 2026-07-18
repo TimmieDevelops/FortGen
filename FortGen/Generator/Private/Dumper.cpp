@@ -1,5 +1,11 @@
 #include "pch.h"
 
+#define SDKFN_PRINT( file, stream )		fprintf ( file, "%s", stream.str().c_str() ); stream.str ( std::string() );
+#define SDKFN_EMPTY( stream )			stream.str ( std::string() );
+#define SDKMC_SSDEC( value, width )		std::dec << std::setfill ( '0' ) << std::setw ( width ) << std::right << (uint32_t)(value) << std::setfill ( ' ' )
+#define SDKMC_SSHEX( value, width )		"0x" << std::hex << std::uppercase << std::setfill ( '0' ) << std::setw ( width ) << std::right << (uint32_t)(value) << std::nouppercase << std::setfill ( ' ' )
+#define SDKMC_SSCOL( string, width )	std::setw(width) << std::setfill(' ') << std::left << string
+
 void Dumper::Initialize()
 {
 	if (!GUObjectArray)
@@ -355,5 +361,36 @@ void Dumper::GenerateEnum(UEnum* Enum, std::ostream& File)
 	Buffer << "// " << FullName << "\n";
 	Buffer << "enum class " << EnumName << " : uint8_t\n{\n";
 
-	std::map<std::string, int> PropertyNames;
+	std::map<std::string, int> Names;
+
+	for (int i = 0; i < Enum->GetNames().Num(); i++)
+	{
+		std::string Name = Enum->GetNames()[i].Key.ToString();
+
+		size_t Pos = Name.find("::");
+		std::string EnumName = SanitizeName((Pos != std::string::npos) ? Name.substr(Pos + 2) : Name);
+
+		if (Names.count(EnumName) == 0)
+		{
+			Names[EnumName] = 1;
+			SupportBuffer << EnumName;
+		}
+		else
+		{
+			SupportBuffer << EnumName << SDKMC_SSDEC(Names[EnumName], 2);
+			Names[EnumName]++;
+		}
+
+		if (i != Enum->GetNames().Num() - 1)
+			Buffer << "\t" << SDKMC_SSCOL(SupportBuffer.str(), 50) << " = " << i << ",\n";
+		else
+			Buffer << "\t" << SDKMC_SSCOL(SupportBuffer.str(), 50) << " = " << i << "\n";
+
+		SDKFN_EMPTY(SupportBuffer);
+	}
+
+	Buffer << "};\n\n";
+
+	File << Buffer.str().c_str();
+	Buffer.str("");
 }
