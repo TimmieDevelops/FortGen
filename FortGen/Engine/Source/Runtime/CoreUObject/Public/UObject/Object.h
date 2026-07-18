@@ -6,7 +6,8 @@
 class UObject : public UObjectBaseUtility
 {
 public:
-	std::string GetPackageName();
+	std::string GetPackageName() const;
+	std::string GetNameCPP() const;
 public:
 	template<typename T>
 	T* Cast(class UClass* Class = T::StaticClass())

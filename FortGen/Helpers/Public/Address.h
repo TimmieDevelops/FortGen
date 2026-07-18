@@ -61,6 +61,8 @@ namespace Address
 
 	inline uintptr_t UMulticastDelegateProperty_SignatureFunction = 0;
 
+	inline uintptr_t UEnum_Names = 0;
+
 	void SetupAddress();
 	void SetupOffsets();
 }

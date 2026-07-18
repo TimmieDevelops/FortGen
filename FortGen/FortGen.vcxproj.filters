@@ -140,9 +140,6 @@
     <ClCompile Include="Generator\Private\Dumper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\Source\Runtime\CoreUObject\Private\UObject\UnrealType.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Generator\Private\IDA.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

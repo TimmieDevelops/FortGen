@@ -118,6 +118,18 @@ void Dumper::ProcessPackages(std::filesystem::path& FolderPath)
 		GeneratedNamesInPackage.clear();
 
 		std::unordered_set<std::string> StructuralDependencies = GetPackageDependencies(PackageName, Objects, true);
+		std::unordered_set<std::string> FullDependencies = GetPackageDependencies(PackageName, Objects, false);
+		std::unordered_set<std::string> InheritanceDependencies = GetPackageDependencies(PackageName, Objects, false, true);
+
+		std::string EnumFileName = "FN_" + PackageName + "_enums.h";
+		if (GeneratedFiles.count(EnumFileName))
+		{
+			std::ostringstream Buffer;
+			ProcessEnums(Objects, PackageName, Buffer);
+			std::filesystem::path Path = FolderPath / EnumFileName;
+			std::ofstream File(Path);
+			File << Buffer.str();
+		}
 	}
 }
 
@@ -302,4 +314,46 @@ void Dumper::CollectDependencies(UProperty* Property, const std::string& Package
 		if (!SignatureFunction) return;
 		AddDependency(SignatureFunction);
 	}
+}
+
+void Dumper::ProcessEnums(const std::vector<UObject*>& Objects, const std::string& PackageName, std::ostream& File)
+{
+	for (UObject* Object : Objects)
+	{
+		if (!Object)
+			continue;
+
+		if (Object->IsA(UEnum::StaticClass()))
+		{
+			UEnum* Enum = Object->Cast<UEnum>();
+			if (!Enum) continue;
+			GenerateEnum(Enum, File);
+		}
+	}
+}
+
+void Dumper::GenerateEnum(UEnum* Enum, std::ostream& File)
+{
+	if (!Enum)
+		return;
+
+	std::string EnumName = SanitizeName(Enum->GetName());
+	if (GeneratedNamesInPackage.count(EnumName))
+		return;
+
+	GeneratedNamesInPackage.insert(EnumName);
+
+	std::ostringstream Buffer;
+	std::ostringstream SupportBuffer;
+
+	std::string OuterNameCPP = SanitizeName(Enum->GetNameCPP());
+	std::string FullName = Enum->GetFullName();
+
+	if (EnumName.find("Default__") != std::string::npos)
+		return;
+
+	Buffer << "// " << FullName << "\n";
+	Buffer << "enum class " << EnumName << " : uint8_t\n{\n";
+
+	std::map<std::string, int> PropertyNames;
 }

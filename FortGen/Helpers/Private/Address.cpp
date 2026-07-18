@@ -106,5 +106,8 @@ void Address::SetupOffsets()
 
 		UMulticastDelegateProperty_SignatureFunction = 0x50;
 		Logger::Log(LogLevel::Info, std::format("UMulticastDelegateProperty::SignatureFunction: 0x{:X}", UMulticastDelegateProperty_SignatureFunction).c_str());
+
+		UEnum_Names = 0x20; // i think?
+		Logger::Log(LogLevel::Info, std::format("UEnum::Names: 0x{:X}", UEnum_Names).c_str());\
 	}
 }

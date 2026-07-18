@@ -2,6 +2,8 @@
 #include "framework.h"
 #include "Object.h"
 #include "Script.h"
+#include "../../../Core/Public/Containers/Array.h"
+#include "../../../Core/Public/Containers/Map.h"
 
 /* UField:
 * Next: 0x1C
@@ -50,6 +52,7 @@ class UEnum : public UField
 {
 public:
 	DEFINE_STATICCLASS("/Script/CoreUObject.Enum", UEnum)
+	DEFINE_MEMBER_REF(Names, Address::UEnum_Names, TArray<TPair<FName, uint8_t>>)
 };
 
 class UScriptStruct : public UStruct

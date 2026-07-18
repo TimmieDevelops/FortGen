@@ -169,7 +169,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
-    <ClCompile Include="Engine\Source\Runtime\CoreUObject\Private\UObject\UnrealType.cpp" />
     <ClCompile Include="Engine\Source\Runtime\CoreUObject\Private\UObject\UObjectBaseUtility.cpp" />
     <ClCompile Include="Engine\Source\Runtime\CoreUObject\Private\UObject\UObjectArray.cpp" />
     <ClCompile Include="Engine\Source\Runtime\CoreUObject\Private\UObject\Object.cpp" />
