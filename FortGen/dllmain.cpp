@@ -8,17 +8,16 @@ DWORD MainThread(HMODULE Module)
     Address::SetupAddress();
     VersionInfo::InitParseVersion();
     Address::SetupOffsets();
-    // GUObjectArray = reinterpret_cast<FUObjectArray*>(Scanner::GetModuleBase() + Address::GUObjectArray);
     GUObjectArray = decltype(GUObjectArray)(Scanner::GetModuleBase() + Address::GUObjectArray);
-    Logger::Log(LogLevel::Info, std::format("NumElements={}", GUObjectArray->GetObjObjects().GetNumElements()).c_str());
-    for (int i = 0; i < GUObjectArray->GetObjObjects().GetNumElements(); i++)
+    IDADumper::Initialize();
+    Dumper::Initialize();
+    UObject* FoundObj = StaticFindObject("/Script/FortniteGame.FortPlayerController");
+    if (FoundObj)
     {
-        Logger::Log(LogLevel::Info, std::format("fmgnio gay={}", i).c_str());
-        UObjectBase* Object = GUObjectArray->GetObjObjects().GetObjects(i)->GetObjectW();
-        if (!Object)
+        UObject* Object = *(UObject**)(reinterpret_cast<uintptr_t>(FoundObj) + 0x2A);
+        if (Object)
         {
-            Logger::Log(LogLevel::Info, "Object is null!");
-            continue;
+            Logger::Log(LogLevel::Info, Object->GetName().c_str());
         }
     }
     return 0;

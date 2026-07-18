@@ -1,9 +1,13 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace FortRuntime
 {
@@ -17,7 +21,7 @@ namespace FortRuntime
         private static extern bool DebugActiveProcessStop(int dwProcessId);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool WaitForDebugEvent([Out] byte[] lpDebugEvent, int dwMilliseconds);
+        private static extern bool WaitForDebugEvent(ref DEBUG_EVENT32 lpDebugEvent, int dwMilliseconds);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool ContinueDebugEvent(uint dwProcessId, uint dwThreadId, uint dwContinueStatus);
@@ -29,10 +33,7 @@ namespace FortRuntime
         private static extern IntPtr OpenThread(uint dwDesiredAccess, bool bInheritHandle, uint dwThreadId);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool GetThreadContext(IntPtr hThread, ref CONTEXT lpContext);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool Wow64GetThreadContext(IntPtr hThread, ref CONTEXT lpContext);
+        private static extern bool GetThreadContext(IntPtr hThread, ref CONTEXT32 lpContext);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool CloseHandle(IntPtr hObject);
@@ -48,17 +49,6 @@ namespace FortRuntime
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern int MessageBox(IntPtr hWnd, string text, string caption, uint type);
-
-        [DllImport("dbghelp.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        private static extern bool MiniDumpWriteDump(
-            IntPtr hProcess,
-            int ProcessId,
-            IntPtr hFile,
-            int DumpType,
-            ref MINIDUMP_EXCEPTION_INFORMATION ExceptionParam,
-            IntPtr UserStreamParam,
-            IntPtr CallbackParam
-        );
 
         [DllImport("dbghelp.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         private static extern bool MiniDumpWriteDump(
@@ -86,17 +76,8 @@ namespace FortRuntime
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Ansi)]
         private static extern IntPtr GetProcAddress(IntPtr hModule, string procName);
 
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        private static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, uint nSize, out IntPtr lpNumberOfBytesWritten);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool VirtualFreeEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint dwFreeType);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, [Out] byte[] lpBuffer, int dwSize, out IntPtr lpNumberOfBytesRead);
+        [DllImport("dbghelp.dll", SetLastError = true)]
+        private static extern bool StackWalk64(uint MachineType, IntPtr hProcess, IntPtr hThread, ref STACKFRAME64 StackFrame, ref CONTEXT32 ContextRecord, IntPtr ReadMemoryRoutine, IntPtr FunctionTableAccessRoutine, IntPtr GetModuleBaseRoutine, IntPtr TranslateAddress);
 
         // Constants
         private const int INFINITE = -1;
@@ -104,9 +85,7 @@ namespace FortRuntime
         private const uint DBG_EXCEPTION_NOT_HANDLED = 0x80010001;
 
         private const uint EXCEPTION_DEBUG_EVENT = 1;
-        private const uint CREATE_PROCESS_DEBUG_EVENT = 3;
         private const uint EXIT_PROCESS_DEBUG_EVENT = 5;
-        private const uint LOAD_DLL_DEBUG_EVENT = 6;
 
         private const uint PROCESS_ALL_ACCESS = 0x001F0FFF;
         private const uint THREAD_GET_CONTEXT = 0x0008;
@@ -117,25 +96,59 @@ namespace FortRuntime
         private const uint MB_OK = 0x00000000;
         private const uint MB_ICONERROR = 0x00000010;
 
-        // Structured x86 layout for EXCEPTION_RECORD to write to target process
+        private const uint IMAGE_FILE_MACHINE_AMD64 = 0x8664;
+
+        private const uint IMAGE_FILE_MACHINE_I386 = 0x014C;
+
+        // Structure definitions matching x64 layout
+        [StructLayout(LayoutKind.Explicit)]
+        private struct DEBUG_EVENT32
+        {
+            [FieldOffset(0)] public uint dwDebugEventCode;
+            [FieldOffset(4)] public uint dwProcessId;
+            [FieldOffset(8)] public uint dwThreadId;
+            [FieldOffset(12)] public EXCEPTION_DEBUG_INFO32 Exception;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct EXCEPTION_DEBUG_INFO32
+        {
+            public EXCEPTION_RECORD32 ExceptionRecord;
+            public uint dwFirstChance;
+        }
+
         [StructLayout(LayoutKind.Sequential)]
         private struct EXCEPTION_RECORD32
         {
             public uint ExceptionCode;
             public uint ExceptionFlags;
-            public uint ExceptionRecordPtr;
-            public uint ExceptionAddress;
+            public IntPtr ExceptionRecordPtr;
+            public IntPtr ExceptionAddress;
             public uint NumberParameters;
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 15)]
             public uint[] ExceptionInformation;
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        private struct CONTEXT
+        private struct FLOATING_SAVE_AREA
+        {
+            public uint ControlWord;
+            public uint StatusWord;
+            public uint TagWord;
+            public uint ErrorOffset;
+            public uint ErrorSelector;
+            public uint DataOffset;
+            public uint DataSelector;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 80)]
+            public byte[] RegisterArea;
+            public uint Cr0NpxState;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct CONTEXT32
         {
             public uint ContextFlags;
 
-            // Debug registers
             public uint Dr0;
             public uint Dr1;
             public uint Dr2;
@@ -143,17 +156,13 @@ namespace FortRuntime
             public uint Dr6;
             public uint Dr7;
 
-            // Floating point state
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 112)]
-            public byte[] FloatSave;
+            public FLOATING_SAVE_AREA FloatSave;
 
-            // Segment registers
             public uint SegGs;
             public uint SegFs;
             public uint SegEs;
             public uint SegDs;
 
-            // Integer registers
             public uint Edi;
             public uint Esi;
             public uint Ebx;
@@ -161,7 +170,6 @@ namespace FortRuntime
             public uint Ecx;
             public uint Eax;
 
-            // Control registers
             public uint Ebp;
             public uint Eip;
             public uint SegCs;
@@ -169,7 +177,6 @@ namespace FortRuntime
             public uint Esp;
             public uint SegSs;
 
-            // Extended registers
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 512)]
             public byte[] ExtendedRegisters;
         }
@@ -214,28 +221,44 @@ namespace FortRuntime
         }
 
         [StructLayout(LayoutKind.Sequential)]
+        private struct STACKFRAME64
+        {
+            public ADDRESS64 AddrPC;
+            public ADDRESS64 AddrReturn;
+            public ADDRESS64 AddrFrame;
+            public ADDRESS64 AddrStack;
+            public ADDRESS64 AddrBSTR;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+            public ulong[] Params;
+            public bool Far;
+            public bool Virtual;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
+            public ulong[] Reserved;
+            public ADDRESS64 AddrKDHelp;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ADDRESS64
+        {
+            public ulong Offset;
+            public ushort Segment;
+            public ushort Reserved;
+            public int Mode;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
         private struct MINIDUMP_EXCEPTION_INFORMATION
         {
             public uint ThreadId;
             public IntPtr ExceptionPointers;
-            public int ClientPointers;
+            public int ClientPointers; // BOOL
         }
 
-        // Parsed information from dynamic DEBUG_EVENT buffer
-        private struct ParsedDebugEvent
+        [StructLayout(LayoutKind.Sequential)]
+        private struct EXCEPTION_POINTERS
         {
-            public uint dwDebugEventCode;
-            public uint dwProcessId;
-            public uint dwThreadId;
-            public uint ExceptionCode;
-            public uint ExceptionFlags;
-            public IntPtr ExceptionRecordPtr;
-            public IntPtr ExceptionAddress;
-            public uint NumberParameters;
-            public ulong ExceptionInformation0;
-            public ulong ExceptionInformation1;
-            public uint dwFirstChance;
-            public IntPtr hFile;
+            public IntPtr ExceptionRecord; // -> EXCEPTION_RECORD32
+            public IntPtr ContextRecord;   // -> CONTEXT32
         }
 
         public static void StartMonitoring(int processId)
@@ -258,94 +281,53 @@ namespace FortRuntime
             bool running = true;
             while (running)
             {
-                byte[] debugEventBuffer = new byte[256];
-                if (WaitForDebugEvent(debugEventBuffer, INFINITE))
+                DEBUG_EVENT32 debugEvent = new DEBUG_EVENT32();
+                if (WaitForDebugEvent(ref debugEvent, INFINITE))
                 {
                     uint continueStatus = DBG_CONTINUE;
-                    bool is64Bit = IntPtr.Size == 8;
 
-                    ParsedDebugEvent ev = new ParsedDebugEvent();
-                    ev.dwDebugEventCode = BitConverter.ToUInt32(debugEventBuffer, 0);
-                    ev.dwProcessId = BitConverter.ToUInt32(debugEventBuffer, 4);
-                    ev.dwThreadId = BitConverter.ToUInt32(debugEventBuffer, 8);
-
-                    if (ev.dwDebugEventCode == EXCEPTION_DEBUG_EVENT)
+                    if (debugEvent.dwDebugEventCode == EXCEPTION_DEBUG_EVENT)
                     {
-                        if (is64Bit)
+                        var exception = debugEvent.Exception;
+                        bool isFirstChance = exception.dwFirstChance != 0;
+
+                        if (!isFirstChance)
                         {
-                            ev.ExceptionCode = BitConverter.ToUInt32(debugEventBuffer, 16);
-                            ev.ExceptionFlags = BitConverter.ToUInt32(debugEventBuffer, 20);
-                            ev.ExceptionRecordPtr = (IntPtr)BitConverter.ToInt64(debugEventBuffer, 24);
-                            ev.ExceptionAddress = (IntPtr)BitConverter.ToInt64(debugEventBuffer, 32);
-                            ev.NumberParameters = BitConverter.ToUInt32(debugEventBuffer, 40);
-                            ev.ExceptionInformation0 = BitConverter.ToUInt64(debugEventBuffer, 48);
-                            ev.ExceptionInformation1 = BitConverter.ToUInt64(debugEventBuffer, 56);
-                            ev.dwFirstChance = BitConverter.ToUInt32(debugEventBuffer, 168);
+                            // This is an unhandled exception (second chance)! Generate crash report.
+                            try
+                            {
+                                GenerateCrashReport(processId, debugEvent);
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"[CrashReporter] Error generating crash report: {ex.Message}");
+                            }
+
+                            try
+                            {
+                                using (var proc = Process.GetProcessById(processId))
+                                    proc.Kill();
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"[CrashReporter] Failed to kill crashed process: {ex.Message}");
+                            }
+
+                            continueStatus = DBG_EXCEPTION_NOT_HANDLED;
+                            running = false; // Stop monitoring and detach/terminate
                         }
                         else
                         {
-                            ev.ExceptionCode = BitConverter.ToUInt32(debugEventBuffer, 12);
-                            ev.ExceptionFlags = BitConverter.ToUInt32(debugEventBuffer, 16);
-                            ev.ExceptionRecordPtr = (IntPtr)BitConverter.ToInt32(debugEventBuffer, 20);
-                            ev.ExceptionAddress = (IntPtr)BitConverter.ToInt32(debugEventBuffer, 24);
-                            ev.NumberParameters = BitConverter.ToUInt32(debugEventBuffer, 28);
-                            ev.ExceptionInformation0 = BitConverter.ToUInt32(debugEventBuffer, 32);
-                            ev.ExceptionInformation1 = BitConverter.ToUInt32(debugEventBuffer, 36);
-                            ev.dwFirstChance = BitConverter.ToUInt32(debugEventBuffer, 92);
-                        }
-
-                        // Debugger control events including WoW64 exceptions:
-                        // 0x80000003: STATUS_BREAKPOINT
-                        // 0x80000004: STATUS_SINGLE_STEP
-                        // 0x4000001F: STATUS_WX86_BREAKPOINT
-                        // 0x4000001E: STATUS_WX86_SINGLE_STEP
-                        if (ev.ExceptionCode == 0x80000003 || ev.ExceptionCode == 0x80000004 ||
-                            ev.ExceptionCode == 0x4000001F || ev.ExceptionCode == 0x4000001E)
-                        {
-                            continueStatus = DBG_CONTINUE;
-                        }
-                        else
-                        {
-                            bool isFirstChance = ev.dwFirstChance != 0;
-
-                            if (!isFirstChance)
-                            {
-                                // This is an unhandled exception (second chance)! Generate crash report.
-                                try
-                                {
-                                    GenerateCrashReport(processId, ev);
-                                }
-                                catch (Exception ex)
-                                {
-                                    Console.WriteLine($"[CrashReporter] Error generating crash report: {ex.Message}");
-                                }
-
-                                continueStatus = DBG_EXCEPTION_NOT_HANDLED;
-                                running = false; // Stop monitoring and detach/terminate
-                            }
-                            else
-                            {
-                                // First chance exception - let target handle it
-                                continueStatus = DBG_EXCEPTION_NOT_HANDLED;
-                            }
+                            // First chance exception - let target handle it
+                            continueStatus = DBG_EXCEPTION_NOT_HANDLED;
                         }
                     }
-                    else if (ev.dwDebugEventCode == CREATE_PROCESS_DEBUG_EVENT || ev.dwDebugEventCode == LOAD_DLL_DEBUG_EVENT)
-                    {
-                        ev.hFile = is64Bit ? (IntPtr)BitConverter.ToInt64(debugEventBuffer, 16) : (IntPtr)BitConverter.ToInt32(debugEventBuffer, 12);
-
-                        // Clean up the file handles sent by Windows to avoid handle leaks and file locking
-                        if (ev.hFile != IntPtr.Zero && ev.hFile != (IntPtr)(-1))
-                        {
-                            CloseHandle(ev.hFile);
-                        }
-                    }
-                    else if (ev.dwDebugEventCode == EXIT_PROCESS_DEBUG_EVENT)
+                    else if (debugEvent.dwDebugEventCode == EXIT_PROCESS_DEBUG_EVENT)
                     {
                         running = false;
                     }
 
-                    ContinueDebugEvent(ev.dwProcessId, ev.dwThreadId, continueStatus);
+                    ContinueDebugEvent(debugEvent.dwProcessId, debugEvent.dwThreadId, continueStatus);
                 }
             }
 
@@ -409,30 +391,11 @@ namespace FortRuntime
                 0xC0000025 => "EXCEPTION_NONCONTINUABLE_EXCEPTION",
                 0xC0000026 => "EXCEPTION_INVALID_DISPOSITION",
                 0xC0000374 => "EXCEPTION_HEAP_CORRUPTION",
-                0x4000001F => "EXCEPTION_WX86_BREAKPOINT",
-                0x4000001E => "EXCEPTION_WX86_SINGLE_STEP",
                 _ => "UNKNOWN_EXCEPTION"
             };
         }
 
-        private static byte[] StructureToBytes<T>(T str) where T : struct
-        {
-            int size = Marshal.SizeOf(str);
-            byte[] arr = new byte[size];
-            IntPtr ptr = Marshal.AllocHGlobal(size);
-            try
-            {
-                Marshal.StructureToPtr(str, ptr, true);
-                Marshal.Copy(ptr, arr, 0, size);
-            }
-            finally
-            {
-                Marshal.FreeHGlobal(ptr);
-            }
-            return arr;
-        }
-
-        private static void GenerateCrashReport(int processId, ParsedDebugEvent debugEvent)
+        private static void GenerateCrashReport(int processId, DEBUG_EVENT32 debugEvent)
         {
             string crashId = Guid.NewGuid().ToString().ToUpper();
             string crashDir = Path.Combine(AppContext.BaseDirectory, "Crashes", crashId);
@@ -457,23 +420,24 @@ namespace FortRuntime
                 // Generate FortniteGame.txt
                 using (StreamWriter writer = new StreamWriter(txtPath, false, Encoding.UTF8))
                 {
-                    string exceptionName = GetExceptionCodeString(debugEvent.ExceptionCode);
+                    var exception = debugEvent.Exception.ExceptionRecord;
+                    string exceptionName = GetExceptionCodeString(exception.ExceptionCode);
                     writer.WriteLine($"[CrashReporter] Caught unhandled exception (Code: {exceptionName})");
 
-                    if (debugEvent.ExceptionCode == 0xC0000005) // EXCEPTION_ACCESS_VIOLATION
+                    if (exception.ExceptionCode == 0xC0000005) // EXCEPTION_ACCESS_VIOLATION
                     {
                         string op = "read";
-                        if (debugEvent.NumberParameters >= 1)
+                        if (exception.NumberParameters >= 1)
                         {
-                            ulong opCode = debugEvent.ExceptionInformation0;
+                            ulong opCode = exception.ExceptionInformation[0];
                             if (opCode == 1) op = "write";
                             else if (opCode == 8) op = "execute";
                         }
 
                         long faultingAddress = 0;
-                        if (debugEvent.NumberParameters >= 2)
+                        if (exception.NumberParameters >= 2)
                         {
-                            faultingAddress = (long)debugEvent.ExceptionInformation1;
+                            faultingAddress = (long)exception.ExceptionInformation[1];
                         }
                         writer.WriteLine($"- Trying to {op} 0x{faultingAddress:X16}");
                     }
@@ -488,36 +452,44 @@ namespace FortRuntime
                     {
                         try
                         {
-                            CONTEXT ctx = new CONTEXT();
-                            ctx.ContextFlags = 0x00010007; // CONTEXT_FULL (x86)
-
-                            bool contextRetrieved = false;
-                            if (IntPtr.Size == 8)
+                            CONTEXT32 ctx = new CONTEXT32();
+                            ctx.ContextFlags = 0x10007; // CONTEXT_FULL (x64)
+                            if (GetThreadContext(hThread, ref ctx))
                             {
-                                contextRetrieved = Wow64GetThreadContext(hThread, ref ctx);
-                            }
-                            else
-                            {
-                                contextRetrieved = GetThreadContext(hThread, ref ctx);
-                            }
+                                STACKFRAME64 frame = new STACKFRAME64();
+                                frame.AddrPC.Offset = ctx.Eip;
+                                frame.AddrPC.Mode = 3; // AddrModeFlat
+                                frame.AddrFrame.Offset = ctx.Ebp;
+                                frame.AddrFrame.Mode = 3;
+                                frame.AddrStack.Offset = ctx.Esp;
+                                frame.AddrStack.Mode = 3;
 
-                            if (contextRetrieved)
-                            {
-                                IntPtr currentEbp = (IntPtr)ctx.Ebp;
-                                IntPtr currentEip = (IntPtr)ctx.Eip;
+                                IntPtr hDbgHelp = GetModuleHandle("dbghelp.dll");
+                                IntPtr pSymFunctionTableAccess64 = GetProcAddress(hDbgHelp, "SymFunctionTableAccess64");
+                                IntPtr pSymGetModuleBase64 = GetProcAddress(hDbgHelp, "SymGetModuleBase64");
 
-                                for (int i = 0; i < 64; i++)
+                                int depth = 0;
+                                while (StackWalk64(
+                                    IMAGE_FILE_MACHINE_I386,
+                                    hProcess,
+                                    hThread,
+                                    ref frame,
+                                    ref ctx,
+                                    IntPtr.Zero,
+                                    pSymFunctionTableAccess64,
+                                    pSymGetModuleBase64,
+                                    IntPtr.Zero))
                                 {
-                                    if (currentEip == IntPtr.Zero)
+                                    if (frame.AddrPC.Offset == 0)
                                         break;
 
-                                    ulong currentEipVal = (ulong)currentEip.ToInt64();
+                                    ulong currentEip = frame.AddrPC.Offset;
                                     string modName = "Unknown";
                                     long offset = 0;
 
                                     foreach (var mod in modules)
                                     {
-                                        long ipVal = (long)currentEipVal;
+                                        long ipVal = (long)currentEip;
                                         long baseVal = mod.BaseAddr.ToInt64();
                                         if (ipVal >= baseVal && ipVal < baseVal + mod.Size)
                                         {
@@ -533,102 +505,71 @@ namespace FortRuntime
                                     symbol.SizeOfStruct = 88;
                                     symbol.MaxNameLen = 256;
 
-                                    if (SymFromAddr(hProcess, currentEipVal, ref displacement, ref symbol))
+                                    if (SymFromAddr(hProcess, currentEip, ref displacement, ref symbol))
                                     {
                                         symbolName = $"[{symbol.Name}]";
                                     }
 
-                                    writer.WriteLine($"0x{currentEipVal:X16} ({modName}+0x{offset:X}): {symbolName}");
-
-                                    // Read next frame
-                                    byte[] frameBuf = new byte[8];
-                                    if (ReadProcessMemory(hProcess, currentEbp, frameBuf, 8, out IntPtr bytesRead) && bytesRead.ToInt32() == 8)
+                                    if (modName != "Unknown")
                                     {
-                                        currentEbp = (IntPtr)BitConverter.ToUInt32(frameBuf, 0);
-                                        currentEip = (IntPtr)BitConverter.ToUInt32(frameBuf, 4);
+                                        writer.WriteLine($"0x{currentEip:X16} ({modName}+0x{offset:X}): {symbolName}");
                                     }
                                     else
                                     {
+                                        writer.WriteLine($"0x{currentEip:X16} (Unknown+0x0): {symbolName}");
+                                    }
+
+                                    depth++;
+                                    if (depth > 128)
                                         break;
-                                    }
-                                }
-
-                                // Allocate remote EXCEPTION_RECORD, CONTEXT, and EXCEPTION_POINTERS
-                                IntPtr remoteContext = VirtualAllocEx(hProcess, IntPtr.Zero, (uint)Marshal.SizeOf(typeof(CONTEXT)), 0x1000 | 0x2000, 0x04);
-                                IntPtr remoteExceptionRecord = VirtualAllocEx(hProcess, IntPtr.Zero, 80, 0x1000 | 0x2000, 0x04);
-                                IntPtr remoteExceptionPointers = VirtualAllocEx(hProcess, IntPtr.Zero, 8, 0x1000 | 0x2000, 0x04);
-
-                                if (remoteContext != IntPtr.Zero && remoteExceptionRecord != IntPtr.Zero && remoteExceptionPointers != IntPtr.Zero)
-                                {
-                                    // 1. Write CONTEXT
-                                    byte[] contextBytes = StructureToBytes(ctx);
-                                    WriteProcessMemory(hProcess, remoteContext, contextBytes, (uint)contextBytes.Length, out _);
-
-                                    // 2. Build and write EXCEPTION_RECORD32 with strict 32-bit layout
-                                    EXCEPTION_RECORD32 rec = new EXCEPTION_RECORD32();
-                                    rec.ExceptionCode = debugEvent.ExceptionCode;
-                                    rec.ExceptionFlags = debugEvent.ExceptionFlags;
-                                    rec.ExceptionRecordPtr = (uint)debugEvent.ExceptionRecordPtr.ToInt64();
-                                    rec.ExceptionAddress = (uint)debugEvent.ExceptionAddress.ToInt64();
-                                    rec.NumberParameters = debugEvent.NumberParameters;
-                                    rec.ExceptionInformation = new uint[15];
-                                    rec.ExceptionInformation[0] = (uint)debugEvent.ExceptionInformation0;
-                                    rec.ExceptionInformation[1] = (uint)debugEvent.ExceptionInformation1;
-
-                                    byte[] exceptionRecordBytes = StructureToBytes(rec);
-                                    WriteProcessMemory(hProcess, remoteExceptionRecord, exceptionRecordBytes, (uint)exceptionRecordBytes.Length, out _);
-
-                                    // 3. Write EXCEPTION_POINTERS (ExceptionRecord, ContextRecord)
-                                    byte[] pointersBytes = new byte[8];
-                                    Array.Copy(BitConverter.GetBytes(remoteExceptionRecord.ToInt32()), 0, pointersBytes, 0, 4);
-                                    Array.Copy(BitConverter.GetBytes(remoteContext.ToInt32()), 0, pointersBytes, 4, 4);
-                                    WriteProcessMemory(hProcess, remoteExceptionPointers, pointersBytes, 8, out _);
-
-                                    // Generate perfect UE4Minidump.dmp with remote pointers
-                                    using (FileStream fs = new FileStream(dmpPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                                    {
-                                        MINIDUMP_EXCEPTION_INFORMATION expInfo = new MINIDUMP_EXCEPTION_INFORMATION();
-                                        expInfo.ThreadId = debugEvent.dwThreadId;
-                                        expInfo.ExceptionPointers = remoteExceptionPointers;
-                                        expInfo.ClientPointers = 1;
-
-                                        bool success = MiniDumpWriteDump(
-                                            hProcess,
-                                            processId,
-                                            fs.SafeFileHandle.DangerousGetHandle(),
-                                            0, // MiniDumpNormal
-                                            ref expInfo,
-                                            IntPtr.Zero,
-                                            IntPtr.Zero
-                                        );
-                                    }
-
-                                    // Free remote memory allocated
-                                    VirtualFreeEx(hProcess, remoteContext, 0, 0x8000);
-                                    VirtualFreeEx(hProcess, remoteExceptionRecord, 0, 0x8000);
-                                    VirtualFreeEx(hProcess, remoteExceptionPointers, 0, 0x8000);
-                                }
-                                else
-                                {
-                                    // Fallback if VirtualAllocEx fails
-                                    using (FileStream fs = new FileStream(dmpPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                                    {
-                                        MiniDumpWriteDump(
-                                            hProcess,
-                                            processId,
-                                            fs.SafeFileHandle.DangerousGetHandle(),
-                                            0,
-                                            IntPtr.Zero,
-                                            IntPtr.Zero,
-                                            IntPtr.Zero
-                                        );
-                                    }
                                 }
                             }
                             else
                             {
                                 writer.WriteLine("Failed to retrieve thread context.");
                             }
+
+                            IntPtr pExceptionRecord = Marshal.AllocHGlobal(Marshal.SizeOf<EXCEPTION_RECORD32>());
+                            Marshal.StructureToPtr(exception, pExceptionRecord, false); // exception = debugEvent.Exception.ExceptionRecord
+
+                            IntPtr pContext = Marshal.AllocHGlobal(Marshal.SizeOf<CONTEXT32>());
+                            Marshal.StructureToPtr(ctx, pContext, false); // ctx = the CONTEXT32 you got from GetThreadContext
+
+                            EXCEPTION_POINTERS exPtrs = new EXCEPTION_POINTERS
+                            {
+                                ExceptionRecord = pExceptionRecord,
+                                ContextRecord = pContext
+                            };
+                            IntPtr pExPtrs = Marshal.AllocHGlobal(Marshal.SizeOf<EXCEPTION_POINTERS>());
+                            Marshal.StructureToPtr(exPtrs, pExPtrs, false);
+
+                            MINIDUMP_EXCEPTION_INFORMATION exInfo = new MINIDUMP_EXCEPTION_INFORMATION
+                            {
+                                ThreadId = debugEvent.dwThreadId,
+                                ExceptionPointers = pExPtrs,
+                                ClientPointers = 0 // false — these pointers are in OUR (debugger) address space, not the target's
+                            };
+                            IntPtr pExInfo = Marshal.AllocHGlobal(Marshal.SizeOf<MINIDUMP_EXCEPTION_INFORMATION>());
+                            Marshal.StructureToPtr(exInfo, pExInfo, false);
+
+                            // Generate UE4Minidump.dmp
+                            using (FileStream fs = new FileStream(dmpPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                            {
+                                bool success = MiniDumpWriteDump(
+                                    hProcess,
+                                    processId,
+                                    fs.SafeFileHandle.DangerousGetHandle(),
+                                    0,
+                                    pExInfo,      // was IntPtr.Zero
+                                    IntPtr.Zero,
+                                    IntPtr.Zero
+                                );
+                            }
+
+                            Marshal.FreeHGlobal(pExceptionRecord);
+                            Marshal.FreeHGlobal(pContext);
+                            Marshal.FreeHGlobal(pExPtrs);
+                            Marshal.FreeHGlobal(pExInfo);
                         }
                         finally
                         {

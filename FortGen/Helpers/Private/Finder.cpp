@@ -34,6 +34,18 @@ uintptr_t Finder::FindUKismetSystemLibrary_GetEngineVersion()
 	return AddressRef.GetAddress();
 }
 
+uintptr_t Finder::FindUKismetSystemLibrary_GetPathName()
+{
+	auto AddressRef = Scanner::FindPattern("8B 4C 24 ? 56 8B 74 24 ? 85 C9"); // OT6.5 (UE4.12)
+	if (!AddressRef.IsValid())
+	{
+		Logger::Log(LogLevel::Warning, "[Finder::FindUKismetSystemLibrary_GetPathName]: AddressRef is valid.");
+		return -1;
+	}
+
+	return AddressRef.GetAddress();
+}
+
 uintptr_t Finder::FindFMemory_Realloc()
 {
 	auto AddressRef = Scanner::FindPattern("8B 0D ? ? ? ? 85 C9 75 ? E8 ? ? ? ? 8B 0D ? ? ? ? FF 74 24 ? 8B 01 FF 74 24 ? FF 74 24"); // OT6.5(UE4.12)
@@ -56,4 +68,48 @@ uintptr_t Finder::FindFName_ToString()
 	}
 
 	return AddressRef.GetAddress();
+}
+
+uintptr_t Finder::FindStaticLoadObject()
+{
+	auto StringRef = Scanner::FindString("Calling StaticLoadObject during PostLoad may result in hitches during streaming.");
+	if (!StringRef.IsValid())
+	{
+		Logger::Log(LogLevel::Warning, "[Finder::FindStaticLoadObject]: StringRef is valid.");
+		return -1;
+	}
+
+	/* OT6.5 (UE4.12)
+	* 81 EC B0 00 00 00
+	*/
+	auto Scanner = StringRef.ScanFor({ 0x81,0xEC,0xB0 }, false);
+	if (!Scanner.IsValid())
+	{
+		Logger::Log(LogLevel::Warning, "[Finder::FindStaticLoadObject]: Scanner is valid.");
+		return -1;
+	}
+
+	return Scanner.GetAddress();
+}
+
+uintptr_t Finder::FindStaticFindObject()
+{
+	auto StringRef = Scanner::FindString("Illegal call to StaticFindObject() while serializing object data!");
+	if (!StringRef.IsValid())
+	{
+		Logger::Log(LogLevel::Warning, "[Finder::FindStaticFindObject]: StringRef is valid.");
+		return -1;
+	}
+
+	/* OT6.5 (UE4.12)
+	* 83 EC 1C
+	*/
+	auto Scanner = StringRef.ScanFor({ 0x83,0xEC,0x1C }, false);
+	if (!Scanner.IsValid())
+	{
+		Logger::Log(LogLevel::Warning, "[Finder::FindStaticLoadObject]: Scanner is valid.");
+		return -1;
+	}
+
+	return Scanner.GetAddress();
 }

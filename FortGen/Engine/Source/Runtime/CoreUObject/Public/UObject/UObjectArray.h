@@ -57,7 +57,7 @@ class FUObjectArray
 {
 public:
 	typedef FFixedUObjectArray TUObjectArray;
-	DEFINE_MEMBER(ObjObjects, Address::FUObjectArray_ObjObjects, TUObjectArray)
+	DEFINE_MEMBER_REF(ObjObjects, Address::FUObjectArray_ObjObjects, TUObjectArray)
 };
 
 extern FUObjectArray* GUObjectArray;
