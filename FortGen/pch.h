@@ -32,6 +32,7 @@
 #include "Engine/Source/Runtime/CoreUObject/Public/UObject/UObjectBase.h"
 #include "Engine/Source/Runtime/CoreUObject/Public/UObject/UObjectBaseUtility.h"
 #include "Engine/Source/Runtime/CoreUObject/Public/UObject/UObjectGlobals.h"
+#include "Engine/Source/Runtime/CoreUObject/Public/UObject/UTextProperty.h"
 #include "Engine/Source/Runtime/Engine/Classes/Kismet/KismetSystemLibrary.h"
 
 #include "Generator/Public/Dumper.h"

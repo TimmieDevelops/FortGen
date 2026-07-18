@@ -394,9 +394,92 @@ std::string Dumper::GetPropertyType(UProperty* Property)
 	{
 		UObjectProperty* ObjectProperty = Property->Cast<UObjectProperty>();
 		if (!ObjectProperty) return "Unknown";
-		UProperty* PropertyClass = *(UProperty**)(__int64(ObjectProperty) + 0x50);
-		Logger::Log(LogLevel::Info, PropertyClass->GetNameCPP());
+		if (ObjectProperty->GetPropertyClass()) return "class " + SanitizeName(ObjectProperty->GetPropertyClass()->GetNameCPP()) + "*";
 		return "Unknown";
+	}
+
+	if (Property->IsA(UArrayProperty::StaticClass()))
+	{
+		UArrayProperty* ArrayProperty = Property->Cast<UArrayProperty>();
+		if (!ArrayProperty) return "Unknown";
+		if (ArrayProperty->GetInner()) return "TArray<" + GetPropertyType(ArrayProperty->GetInner()) + ">";
+		return "Unknown";
+	}
+
+	if (Property->IsA(UStrProperty::StaticClass()))
+		return "FString";
+
+	if (Property->IsA(UWeakObjectProperty::StaticClass()))
+	{
+		UWeakObjectProperty* WeakObjectProperty = Property->Cast<UWeakObjectProperty>();
+		if (!WeakObjectProperty) return "Unknown";
+		if (WeakObjectProperty->GetPropertyClass()) return "TWeakObjectPtr<class " + SanitizeName(WeakObjectProperty->GetPropertyClass()->GetNameCPP()) + ">";
+		return "TWeakObjectPtr<class UObject>";
+	}
+
+	if (Property->IsA(UNameProperty::StaticClass()))
+		return "FName";
+
+	if (Property->IsA(UTextProperty::StaticClass()))
+		return "FText";
+	
+	if (Property->IsA(UDoubleProperty::StaticClass()))
+		return "double";
+
+	if (Property->IsA(UMapProperty::StaticClass()))
+	{
+		UMapProperty* MapProperty = Property->Cast<UMapProperty>();
+		if (!MapProperty) return "Unknown";
+		return "TMap<" + GetPropertyType(MapProperty->GetKeyProp()) + ", " + GetPropertyType(MapProperty->GetValueProp()) + ">";
+	}
+
+	if (Property->IsA(UUInt32Property::StaticClass()))
+		return "uint32_t";
+
+	if (Property->IsA(UUInt64Property::StaticClass()))
+		return "uint64_t";
+
+	if (Property->IsA(UInt16Property::StaticClass()))
+		return "int16_t";
+
+	if (Property->IsA(UInt8Property::StaticClass()))
+		return "int8_t";
+
+	if (Property->IsA(UInt64Property::StaticClass()))
+		return "int64_t";
+
+	if (Property->IsA(UUInt16Property::StaticClass()))
+		return "uint16_t";
+
+	if (Property->IsA(UAssetObjectProperty::StaticClass()))
+	{
+		UAssetObjectProperty* AssetObjectProperty = Property->Cast<UAssetObjectProperty>();
+		if (!AssetObjectProperty) return "Unknown";
+		return "TAssetPtr<" + SanitizeName(AssetObjectProperty->GetPropertyClass()->GetNameCPP()) + ">";
+	}
+
+	if (Property->IsA(UMulticastDelegateProperty::StaticClass()))
+	{
+		UMulticastDelegateProperty* DelegateProperty = Property->Cast<UMulticastDelegateProperty>();
+		if (!DelegateProperty) return "FMulticastScriptDelegate";
+		if (DelegateProperty->GetSignatureFunction()) return "struct F" + SanitizeName(DelegateProperty->GetSignatureFunction()->GetOuterPrivate()->GetNameCPP()) + "_" + SanitizeName(DelegateProperty->GetSignatureFunction()->GetName());
+		return "FMulticastScriptDelegate";
+	}
+
+	if (Property->IsA(UDelegateProperty::StaticClass()))
+	{
+		UDelegateProperty* DelegateProperty = Property->Cast<UDelegateProperty>();
+		if (!DelegateProperty) return "FScriptDelegate";
+		if (DelegateProperty->GetSignatureFunction()) return "struct F" + SanitizeName(DelegateProperty->GetSignatureFunction()->GetOuterPrivate()->GetNameCPP()) + "_" + SanitizeName(DelegateProperty->GetSignatureFunction()->GetName());
+		return "FScriptDelegate";
+	}
+
+	if (Property->IsA(ULazyObjectProperty::StaticClass()))
+	{
+		ULazyObjectProperty* ObjectProperty = Property->Cast<ULazyObjectProperty>();
+		if (ObjectProperty) return "Unknown";
+		if (ObjectProperty->GetPropertyClass()) return "TLazyObjectPtr<class " + SanitizeName(ObjectProperty->GetPropertyClass()->GetNameCPP()) + ">";
+		return "TLazyObjectPtr<class UObject>";
 	}
 
 	Logger::Log(LogLevel::Info, std::format("[Dumper::GetPropertyType]: Property Class is not found: {}", Property->GetFullName()).c_str());

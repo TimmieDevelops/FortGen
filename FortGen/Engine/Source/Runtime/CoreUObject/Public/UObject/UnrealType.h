@@ -89,10 +89,84 @@ class UObjectPropertyBase : public UProperty
 {
 public:
 	DEFINE_STATICCLASS("/Script/CoreUObject.ObjectPropertyBase", UObjectPropertyBase)
+	DEFINE_MEMBER(PropertyClass, Address::UObjectPropertyBase_PropertyClass, UProperty*)
 };
 
 class UObjectProperty : public UObjectPropertyBase
 {
 public:
 	DEFINE_STATICCLASS("/Script/CoreUObject.ObjectProperty", UObjectProperty)
+};
+
+class UStrProperty : public UProperty
+{
+public:
+	DEFINE_STATICCLASS("/Script/CoreUObject.StrProperty", UStrProperty)
+};
+
+class UWeakObjectProperty : public UObjectPropertyBase
+{
+public:
+	DEFINE_STATICCLASS("/Script/CoreUObject.WeakObjectProperty", UWeakObjectProperty)
+};
+
+class UNameProperty : public UProperty
+{
+public:
+	DEFINE_STATICCLASS("/Script/CoreUObject.NameProperty", UNameProperty)
+};
+
+class UDoubleProperty : public UProperty
+{
+public:
+	DEFINE_STATICCLASS("/Script/CoreUObject.DoubleProperty", UDoubleProperty)
+};
+
+class UUInt32Property : public UProperty
+{
+public:
+	DEFINE_STATICCLASS("/Script/CoreUObject.UInt32Property", UUInt32Property)
+};
+
+class UUInt64Property : public UProperty
+{
+public:
+	DEFINE_STATICCLASS("/Script/CoreUObject.UInt64Property", UUInt64Property)
+};
+
+class UInt16Property : public UProperty
+{
+public:
+	DEFINE_STATICCLASS("/Script/CoreUObject.Int16Property", UInt16Property)
+};
+
+class UInt8Property : public UProperty
+{
+public:
+	DEFINE_STATICCLASS("/Script/CoreUObject.Int8Property", UInt8Property)
+};
+
+class UInt64Property : public UProperty
+{
+public:
+	DEFINE_STATICCLASS("/Script/CoreUObject.Int64Property", UInt64Property)
+};
+
+class UAssetObjectProperty : public UObjectPropertyBase
+{
+public:
+	DEFINE_STATICCLASS("/Script/CoreUObject.AssetObjectProperty", UAssetObjectProperty)
+};
+
+class ULazyObjectProperty : public UObjectPropertyBase
+{
+public:
+	DEFINE_STATICCLASS("/Script/CoreUObject.LazyObjectProperty", ULazyObjectProperty)
+};
+
+
+class UUInt16Property : public UProperty
+{
+public:
+	DEFINE_STATICCLASS("/Script/CoreUObject.UInt16Property", UUInt16Property)
 };

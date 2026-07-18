@@ -110,13 +110,21 @@ void Address::SetupOffsets()
 		UEnum_Names = 0x2C; // IDA
 		Logger::Log(LogLevel::Info, std::format("UEnum::Names: 0x{:X}", UEnum_Names).c_str());
 
-		UBoolProperty_FieldSize = 0x40;
+		UBoolProperty_FieldSize = 0x50;
 		Logger::Log(LogLevel::Info, std::format("UBoolProperty::FieldSize: 0x{:X}", UBoolProperty_FieldSize).c_str());
-		UBoolProperty_ByteOffset = 0x41;
+		UBoolProperty_ByteOffset = 0x51;
 		Logger::Log(LogLevel::Info, std::format("UBoolProperty::ByteOffset: 0x{:X}", UBoolProperty_ByteOffset).c_str());
-		UBoolProperty_ByteMask = 0x42;
+		UBoolProperty_ByteMask = 0x52;
 		Logger::Log(LogLevel::Info, std::format("UBoolProperty::ByteMask: 0x{:X}", UBoolProperty_ByteMask).c_str());
-		UBoolProperty_FieldMask = 0x43;
+		UBoolProperty_FieldMask = 0x53;
 		Logger::Log(LogLevel::Info, std::format("UBoolProperty::FieldMask: 0x{:X}", UBoolProperty_FieldMask).c_str());
+
+		UObjectPropertyBase_PropertyClass = 0x50;
+		Logger::Log(LogLevel::Info, std::format("UObjectPropertyBase::PropertyClass: 0x{:X}", UObjectPropertyBase_PropertyClass).c_str());
+
+		UMapProperty_KeyProp = 0x50;
+		Logger::Log(LogLevel::Info, std::format("UMapProperty::KeyProp: 0x{:X}", UMapProperty_KeyProp).c_str());
+		UMapProperty_ValueProp = 0x54;
+		Logger::Log(LogLevel::Info, std::format("UMapProperty::ValueProp: 0x{:X}", UMapProperty_ValueProp).c_str());
 	}
 }
