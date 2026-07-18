@@ -1,6 +1,13 @@
 #pragma once
 #include "framework.h"
 
+template<typename KeyType, typename ValueType, typename OtherType = void>
+struct TPair
+{
+	KeyType Key;
+	ValueType Value;
+};
+
 template<typename InElementType>
 class TArray
 {
