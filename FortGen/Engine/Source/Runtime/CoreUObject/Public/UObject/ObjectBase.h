@@ -1,0 +1,63 @@
+#pragma once
+#include "framework.h"
+
+enum EPropertyFlags : uint64_t
+{
+    CPF_Edit = 0x0000000000000001ULL,
+    CPF_ConstParm = 0x0000000000000002ULL,
+    CPF_BlueprintVisible = 0x0000000000000004ULL,
+    CPF_ExportObject = 0x0000000000000008ULL,
+    CPF_BlueprintReadOnly = 0x0000000000000010ULL,
+    CPF_Net = 0x0000000000000020ULL,
+    CPF_EditFixedSize = 0x0000000000000040ULL,
+    CPF_Parm = 0x0000000000000080ULL,
+    CPF_OutParm = 0x0000000000000100ULL,
+    CPF_ZeroConstructor = 0x0000000000000200ULL,
+    CPF_ReturnParm = 0x0000000000000400ULL,
+    CPF_DisableEditOnTemplate = 0x0000000000000800ULL,
+
+    CPF_Transient = 0x0000000000002000ULL,
+    CPF_Config = 0x0000000000004000ULL,
+
+    CPF_DisableEditOnInstance = 0x0000000000010000ULL,
+    CPF_EditConst = 0x0000000000020000ULL,
+    CPF_GlobalConfig = 0x0000000000040000ULL,
+    CPF_InstancedReference = 0x0000000000080000ULL,
+
+    CPF_DuplicateTransient = 0x0000000000200000ULL,
+    CPF_SubobjectReference = 0x0000000000400000ULL,
+
+    CPF_SaveGame = 0x0000000001000000ULL,
+    CPF_NoClear = 0x0000000002000000ULL,
+
+    CPF_ReferenceParm = 0x0000000008000000ULL,
+    CPF_BlueprintAssignable = 0x0000000010000000ULL,
+    CPF_Deprecated = 0x0000000020000000ULL,
+    CPF_IsPlainOldData = 0x0000000040000000ULL,
+    CPF_RepSkip = 0x0000000080000000ULL,
+    CPF_RepNotify = 0x0000000100000000ULL,
+    CPF_Interp = 0x0000000200000000ULL,
+    CPF_NonTransactional = 0x0000000400000000ULL,
+    CPF_EditorOnly = 0x0000000800000000ULL,
+    CPF_NoDestructor = 0x0000001000000000ULL,
+
+    CPF_AutoWeak = 0x0000004000000000ULL,
+    CPF_ContainsInstancedReference = 0x0000008000000000ULL,
+    CPF_AssetRegistrySearchable = 0x0000010000000000ULL,
+    CPF_SimpleDisplay = 0x0000020000000000ULL,
+    CPF_AdvancedDisplay = 0x0000040000000000ULL,
+    CPF_Protected = 0x0000080000000000ULL,
+    CPF_BlueprintCallable = 0x0000100000000000ULL,
+    CPF_BlueprintAuthorityOnly = 0x0000200000000000ULL,
+    CPF_TextExportTransient = 0x0000400000000000ULL,
+    CPF_NonPIEDuplicateTransient = 0x0000800000000000ULL,
+    CPF_ExposeOnSpawn = 0x0001000000000000ULL,
+    CPF_PersistentInstance = 0x0002000000000000ULL,
+    CPF_UObjectWrapper = 0x0004000000000000ULL,
+    CPF_HasGetValueTypeHash = 0x0008000000000000ULL,
+    CPF_NativeAccessSpecifierPublic = 0x0010000000000000ULL,
+    CPF_NativeAccessSpecifierProtected = 0x0020000000000000ULL,
+    CPF_NativeAccessSpecifierPrivate = 0x0040000000000000ULL,
+
+    CPF_AllFlags = 0xFFFFFFFFFFFFFFFFULL
+};

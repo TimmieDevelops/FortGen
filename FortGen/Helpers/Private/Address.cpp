@@ -126,5 +126,8 @@ void Address::SetupOffsets()
 		Logger::Log(LogLevel::Info, std::format("UMapProperty::KeyProp: 0x{:X}", UMapProperty_KeyProp).c_str());
 		UMapProperty_ValueProp = 0x54;
 		Logger::Log(LogLevel::Info, std::format("UMapProperty::ValueProp: 0x{:X}", UMapProperty_ValueProp).c_str());
+
+		UInterfaceProperty_InterfaceClass = 0x50;
+		Logger::Log(LogLevel::Info, std::format("UInterfaceProperty::InterfaceClass: 0x{:X}", UInterfaceProperty_InterfaceClass).c_str());
 	}
 }

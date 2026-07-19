@@ -27,7 +27,9 @@ void Dumper::Initialize()
 	if (!std::filesystem::exists(SDKPath))
 		std::filesystem::create_directories(SDKPath);
 
-	InitMinStructSize();
+	BuildMinStructSize();
+	BuildValidStructPackages();
+
 	DumpObjects(FolderPath);
 	ProcessPackages(SDKPath);
 
@@ -61,6 +63,7 @@ void Dumper::DumpObjects(std::filesystem::path& FolderPath)
 void Dumper::ProcessPackages(std::filesystem::path& FolderPath)
 {
 	ClassesFullName.clear();
+	ScriptStructsFullName.clear();
 
 	std::unordered_map<std::string, std::vector<UObject*>> PackageMap;
 
@@ -115,6 +118,9 @@ void Dumper::ProcessPackages(std::filesystem::path& FolderPath)
 		if (bHasClass)
 			GeneratedFiles.insert("FN_" + PackageName + "_classes.h");
 
+		if (bHasClass)
+			GeneratedFiles.insert("FN_" + PackageName + "_functions.cpp");
+
 		if (bHasParam)
 			GeneratedFiles.insert("FN_" + PackageName + "_parameters.h");
 	}
@@ -134,6 +140,7 @@ void Dumper::ProcessPackages(std::filesystem::path& FolderPath)
 			ProcessEnums(Objects, PackageName, Buffer);
 			std::filesystem::path Path = FolderPath / EnumFileName;
 			std::ofstream File(Path);
+			PrintFileHeader(File, PackageName, {}, "enums");
 			File << Buffer.str();
 		}
 
@@ -141,15 +148,53 @@ void Dumper::ProcessPackages(std::filesystem::path& FolderPath)
 		if (GeneratedFiles.count(StructFileName))
 		{
 			std::ostringstream Buffer;
+			ProcessingScriptStructs.clear();
 			ProcessScriptStructs(Objects, PackageName, Buffer);
 			std::filesystem::path Path = FolderPath / StructFileName;
+			if (!Buffer.str().empty())
+			{
+				std::ofstream File(Path);
+				PrintFileHeader(File, PackageName, StructuralDependencies, "structs");
+				File << Buffer.str(); 
+			}
+			else
+			{
+				if (std::filesystem::exists(Path))
+					std::filesystem::remove(Path);
+			}
+		}
+
+		std::string ClassFileName = "FN_" + PackageName + "_classes.h";
+		if (GeneratedFiles.count(ClassFileName))
+		{
+			std::ostringstream Buffer;
+			ProcessClasses(Objects, PackageName, Buffer);
+			std::filesystem::path Path = FolderPath / ClassFileName;
 			std::ofstream File(Path);
+			PrintFileHeader(File, PackageName, FullDependencies, "classes", InheritanceDependencies);
 			File << Buffer.str();
+		}
+
+		std::string FunctionFileName = "FN_" + PackageName + "_functions.cpp";
+		if (GeneratedFiles.count(FunctionFileName))
+		{
+			std::ostringstream Buffer;
+			ProcessFunctions(Objects, Buffer);
+			if (!Buffer.str().empty())
+			{
+				std::filesystem::path Path = FolderPath / ClassFileName;
+				std::ofstream File(Path);
+				if (Settings::bInclude_pch_Header) File << "#include \"pch.h\"\n\n";
+				std::string Header = "FN_" + PackageName + "_classes.h";
+				if (GeneratedFiles.count(Header))
+					File << "#include \"" << Header << "\"\n\n";
+				File << Buffer.str();
+			}
 		}
 	}
 }
 
-void Dumper::InitMinStructSize()
+void Dumper::BuildMinStructSize()
 {
 	bool bChanged = true;
 
@@ -260,6 +305,31 @@ std::unordered_set<std::string> Dumper::GetPackageDependencies(const std::string
 				}
 			}
 		}
+		else if (Object->IsA(UFunction::StaticClass()))
+		{
+			UFunction* Function = Object->Cast<UFunction>();
+			if (!Function)
+				continue;
+
+			EFunctionFlags FunctionFlags = Function->GetFunctionFlags();
+			if ((FunctionFlags & (FUNC_Delegate | FUNC_MulticastDelegate) || Function->GetName().find("__DelegateSignature") != std::string::npos))
+			{
+				for (UField* Param = Function->GetChildren(); Param; Param = Param->GetNext())
+				{
+					if (!Param)
+						continue;
+
+					if (Param->IsA(UProperty::StaticClass()))
+					{
+						UProperty* Property = Param->Cast<UProperty>();
+						if (!Property)
+							continue;
+
+						CollectDependencies(Property, PackageName, Dependencies, bStructuralOnly);
+					}
+				}
+			}
+		}
 	}
 
 	return Dependencies;
@@ -365,7 +435,7 @@ std::string Dumper::GetPropertyType(UProperty* Property)
 	if (!Property)
 		return "Unknown";
 
-	Logger::Log(LogLevel::Info, Property->GetFullName());
+	// Logger::Log(LogLevel::Info, Property->GetFullName());
 
 	if (Property->IsA(UBoolProperty::StaticClass()))
 		return "bool";
@@ -397,7 +467,7 @@ std::string Dumper::GetPropertyType(UProperty* Property)
 		UObjectProperty* ObjectProperty = Property->Cast<UObjectProperty>();
 		if (!ObjectProperty) return "Unknown";
 		if (ObjectProperty->GetPropertyClass()) return "class " + SanitizeName(ObjectProperty->GetPropertyClass()->GetNameCPP()) + "*";
-		return "Unknown";
+		return "class UObject*";
 	}
 
 	if (Property->IsA(UArrayProperty::StaticClass()))
@@ -479,9 +549,17 @@ std::string Dumper::GetPropertyType(UProperty* Property)
 	if (Property->IsA(ULazyObjectProperty::StaticClass()))
 	{
 		ULazyObjectProperty* ObjectProperty = Property->Cast<ULazyObjectProperty>();
-		if (ObjectProperty) return "Unknown";
+		if (!ObjectProperty) return "Unknown";
 		if (ObjectProperty->GetPropertyClass()) return "TLazyObjectPtr<class " + SanitizeName(ObjectProperty->GetPropertyClass()->GetNameCPP()) + ">";
 		return "TLazyObjectPtr<class UObject>";
+	}
+
+	if (Property->IsA(UInterfaceProperty::StaticClass()))
+	{
+		UInterfaceProperty* InterfaceProperty = Property->Cast<UInterfaceProperty>();
+		if (!InterfaceProperty) return "Unknown";
+		if (InterfaceProperty->GetInterfaceClass()) return "TScriptInterface<class " + SanitizeName(InterfaceProperty->GetInterfaceClass()->GetNameCPP()) + ">";
+		return "TScriptInterface<class UObject>";
 	}
 
 	Logger::Log(LogLevel::Info, std::format("[Dumper::GetPropertyType]: Property Class is not found: {}", Property->GetFullName()).c_str());
@@ -505,6 +583,138 @@ std::string Dumper::GetSafeName(const std::string& Name, const std::string& Type
 		CleanName += "_";
 
 	return CleanName;
+}
+
+void Dumper::PrintFileHeader(std::ostream& File, const std::string& PackageName, const std::unordered_set<std::string>& Dependencies, const std::string& Type, const std::unordered_set<std::string>& InheritanceDependencies)
+{
+	File << "#pragma once\n\n";
+
+	if (Type == "structs" || Type == "classes" || Type == "parameters")
+	{
+		std::string EnumHeader = "FN_" + PackageName + "_enums.h";
+		if (GeneratedFiles.count(EnumHeader))
+			File << "#include \"" << EnumHeader << "\"\n";
+
+		if (Type == "classes" || Type == "parameters")
+		{
+			std::string StructHeader = "FN_" + PackageName + "_structs.h";
+			if (GeneratedFiles.count(StructHeader))
+				File << "#include \"" << StructHeader << "\"\n";
+		}
+
+		std::vector<std::string> SortedDependencies(Dependencies.begin(), Dependencies.end());
+		std::sort(SortedDependencies.begin(), SortedDependencies.end());
+
+		for (const std::string& Dependency : SortedDependencies)
+		{
+			if (Dependency == PackageName)
+				continue;
+
+			std::string DepEnum = "FN_" + Dependency + "_enums.h";
+
+			if (GeneratedFiles.count(DepEnum))
+				File << "#include \"" << DepEnum << "\"\n";
+
+			std::string DepStruct = "FN_" + Dependency + "_structs.h";
+			if (GeneratedFiles.find(DepStruct) != GeneratedFiles.end())
+			{
+				File << "#include \"" << DepStruct << "\"\n";
+			}
+			else
+			{
+				if (ValidStructPackages.count(Dependency))
+					File << "#include \"" << DepStruct << "\"\n";
+			}
+
+			if (Type == "classes")
+			{
+				if (InheritanceDependencies.count(Dependency))
+				{
+					std::string DepClass = "FN_" + Dependency + "_classes.h";
+					if (GeneratedFiles.count(DepClass))
+						File << "#include \"" << DepClass << "\"\n";
+				}
+			}
+		}
+	}
+}
+
+void Dumper::BuildValidStructPackages()
+{
+	ValidStructPackages.clear();
+
+	for (int i = 0; i < GUObjectArray->GetObjObjects().GetNumElements(); i++)
+	{
+		UObject* Object = (UObject*)GUObjectArray->GetObjObjects().GetObjects(i)->GetObjectW();
+		if (!Object) continue;
+		if (!Object->IsA(UScriptStruct::StaticClass())) continue;
+		UScriptStruct* Struct = Object->Cast<UScriptStruct>();
+		if (!Struct) continue;
+		if (Object->GetOutermost()->GetPackageName().empty()) continue;
+		bool bValid = (Struct->GetChildren() != nullptr) || (Struct->GetPropertiesSize() > 0);
+		if (bValid) ValidStructPackages.insert(SanitizeName(Object->GetOutermost()->GetPackageName()));
+	}
+}
+
+std::string Dumper::GetFunctionSignature(UFunction* Function, bool bWithScope)
+{
+	if (!Function)
+		return "void Unknown()";
+
+	std::string Prefix = "";
+	EFunctionFlags FunctionFlags = Function->GetFunctionFlags();
+	if (FunctionFlags & FUNC_Static && !bWithScope)
+		Prefix = "static ";
+
+	std::string Suffix = "";
+	if (FunctionFlags & FUNC_Const && !(FunctionFlags & FUNC_Static))
+		Suffix = " const";
+
+	std::string ReturnValue = "void";
+	std::vector<std::string> Params;
+
+	for (UField* Child = Function->GetChildren(); Child; Child = Child->GetNext())
+	{
+		if (!Child)
+			continue;
+
+		if (Child->IsA(UProperty::StaticClass()))
+		{
+			UProperty* Property = Child->Cast<UProperty>();
+			if (!Property)
+				continue;
+
+			EPropertyFlags PropertyFlags = Property->GetPropertyFlags();
+			if (PropertyFlags & CPF_Parm)
+			{
+				std::string Type = GetPropertyType(Property);
+				std::string Name = GetSafeName(SanitizeName(Property->GetName()), Type);
+
+				if (PropertyFlags & CPF_ReturnParm)
+					ReturnValue = Type;
+				else
+					Params.push_back(Type + " " + Name);
+			}
+		}
+	}
+
+	std::string Scope = "";
+
+	if (bWithScope)
+		Scope = SanitizeName(Function->GetOuterPrivate()->GetNameCPP()) + "::";
+
+	std::string Signature = Prefix + ReturnValue + " " + Scope + SanitizeName(Function->GetName()) + "(";
+
+	for (size_t i = 0; i < Params.size(); i++)
+	{
+		Signature += Params[i];
+		if (i != Params.size() - 1)
+			Signature += ", ";
+	}
+
+	Signature += ")" + Suffix;
+
+	return Signature;
 }
 
 void Dumper::ProcessEnums(const std::vector<UObject*>& Objects, const std::string& PackageName, std::ostream& File)
@@ -535,6 +745,42 @@ void Dumper::ProcessScriptStructs(const std::vector<UObject*>& Objects, const st
 			UScriptStruct* Struct = Object->Cast<UScriptStruct>();
 			if (!Struct) continue;
 			GenerateScriptStructs(Struct, PackageName, File);
+		}
+	}
+}
+
+void Dumper::ProcessClasses(const std::vector<UObject*>& Objects, const std::string& PackageName, std::ostream& File)
+{
+	for (UObject* Object : Objects)
+	{
+		if (!Object)
+			continue;
+
+		if (Object->IsA(UClass::StaticClass()))
+		{
+			UClass* Class = Object->Cast<UClass>();
+			if (!Class) continue;
+			GenerateClasses(Class, PackageName, File);
+		}
+	}
+}
+
+void Dumper::ProcessFunctions(const std::vector<UObject*>& Objects, std::ostream& File)
+{
+	for (UObject* Object : Objects)
+	{
+		if (!Object)
+			continue;
+
+		if (Object->IsA(UClass::StaticClass()))
+		{
+			UClass* Class = Object->Cast<UClass>();
+			if (!Class) continue;
+			GenerateStaticClass(Class, File);
+		}
+		else if (Object->IsA(UScriptStruct::StaticClass()))
+		{
+
 		}
 	}
 }
@@ -759,7 +1005,7 @@ void Dumper::GenerateScriptStruct(UScriptStruct* ScriptStruct, std::ostream& Fil
 				std::ostringstream PadName;
 
 				PadName << "UnknownData_" << std::hex << std::uppercase << CurrentOffset << "[" << SDKMC_SSHEX(Padding, 0) << "];";
-				Buffer << "\t" << SDKMC_SSCOL("uint8_t", 50) << " " << SDKMC_SSCOL(PadName.str(), 50) << " // " << SDKMC_SSHEX(CurrentOffset, 4) << " (" << SDKMC_SSHEX(Padding, 4) << ") MISSED OFFSET\n";
+				Buffer << "\t" << SDKMC_SSCOL("uint8_t", 100) << " " << SDKMC_SSCOL(PadName.str(), 50) << " // " << SDKMC_SSHEX(CurrentOffset, 4) << " (" << SDKMC_SSHEX(Padding, 4) << ") MISSED OFFSET\n";
 			}
 
 			std::string PropertyType = Property.Type;
@@ -771,15 +1017,15 @@ void Dumper::GenerateScriptStruct(UScriptStruct* ScriptStruct, std::ostream& Fil
 			if (Property.bIsBool && Property.bIsBitField)
 			{
 				if (LastBitfieldByteOffset != -1 && LastBitfieldByteOffset != Property.ByteOffset)
-					Buffer << "\t" << SDKMC_SSCOL("uint8_t", 50) << " " << SDKMC_SSHEX(": 0;", 50) << "\n";
+					Buffer << "\t" << SDKMC_SSCOL("uint8_t", 100) << " " << SDKMC_SSHEX(": 0;", 50) << "\n";
 
-				Buffer << "\t" << SDKMC_SSCOL("uint8_t", 50) << " " << SDKMC_SSCOL(PropertyName + " : 1;", 50) << " // " << SDKMC_SSHEX(Offset, 4) << " (" << SDKMC_SSHEX(Size, 4) << ") [BITFIELD] [ByteOffset: " << SDKMC_SSHEX(Property.ByteOffset, 2) << "] [Mask: " << SDKMC_SSHEX(Property.ByteMask, 2) << "]\n";
+				Buffer << "\t" << SDKMC_SSCOL("uint8_t", 100) << " " << SDKMC_SSCOL(PropertyName + " : 1;", 50) << " // " << SDKMC_SSHEX(Offset, 4) << " (" << SDKMC_SSHEX(Size, 4) << ") [BITFIELD] [ByteOffset: " << SDKMC_SSHEX(Property.ByteOffset, 2) << "] [Mask: " << SDKMC_SSHEX(Property.ByteMask, 2) << "]\n";
 
 				LastBitfieldByteOffset = Property.ByteOffset;
 			}
 			else
 			{
-				Buffer << "\t" << SDKMC_SSCOL(PropertyType, 50) << " " << SDKMC_SSCOL(PropertyName + ";", 50) << " // " << SDKMC_SSHEX(Offset, 4) << " (" << SDKMC_SSHEX(Size, 4) << ")\n";
+				Buffer << "\t" << SDKMC_SSCOL(PropertyType, 100) << " " << SDKMC_SSCOL(PropertyName + ";", 50) << " // " << SDKMC_SSHEX(Offset, 4) << " (" << SDKMC_SSHEX(Size, 4) << ")\n";
 				LastBitfieldByteOffset = -1;
 			}
 
@@ -792,7 +1038,7 @@ void Dumper::GenerateScriptStruct(UScriptStruct* ScriptStruct, std::ostream& Fil
 			std::ostringstream PadName;
 
 			PadName << "UnknownData_" << std::hex << std::uppercase << CurrentOffset << "[" << SDKMC_SSHEX(Padding, 0) << "];";
-			Buffer << "\t" << SDKMC_SSCOL("uint8_t", 50) << " " << SDKMC_SSCOL(PadName.str(), 50) << " // " << SDKMC_SSHEX(CurrentOffset, 4) << " (" << SDKMC_SSHEX(Padding, 4) << ") MISSED OFFSET\n";
+			Buffer << "\t" << SDKMC_SSCOL("uint8_t", 100) << " " << SDKMC_SSCOL(PadName.str(), 50) << " // " << SDKMC_SSHEX(CurrentOffset, 4) << " (" << SDKMC_SSHEX(Padding, 4) << ") MISSED OFFSET\n";
 		}
 	}
 
@@ -801,4 +1047,207 @@ void Dumper::GenerateScriptStruct(UScriptStruct* ScriptStruct, std::ostream& Fil
 	Buffer << "};\n\n";
 
 	File << Buffer.str();
+}
+
+void Dumper::GenerateClasses(UClass* Class, const std::string& PackageName, std::ostream& File)
+{
+	if (!Class)
+		return;
+
+	if (ClassesFullName.find(Class->GetFullName()) != ClassesFullName.end())
+		return;
+
+	UStruct* SuperStruct = Class->GetSuperStruct();
+	if (SuperStruct && SuperStruct->IsA(UClass::StaticClass()) && SanitizeName(SuperStruct->GetOutermost()->GetPackageName()) == PackageName)
+	{
+		UClass* Struct = SuperStruct->Cast<UClass>();
+		if (!Struct) return;
+		GenerateClasses(Struct, PackageName, File);
+	}
+
+	if (SanitizeName(Class->GetOutermost()->GetPackageName()) == PackageName)
+	{
+		std::string FullName = Class->GetFullName();
+		GenerateClass(Class, File);
+		ClassesFullName.insert(FullName);
+	}
+}
+
+void Dumper::GenerateClass(UClass* Class, std::ostream& File)
+{
+	if (!Class)
+		return;
+
+	if (ClassesFullName.find(Class->GetFullName()) != ClassesFullName.end())
+		return;
+
+	std::string StructName = SanitizeName(Class->GetNameCPP());
+	if (GeneratedNamesInPackage.count(StructName))
+		return;
+
+	GeneratedNamesInPackage.insert(StructName);
+
+	std::ostringstream Buffer;
+
+	std::string SuperStructName = (Class->GetSuperStruct() && Class->GetSuperStruct()->IsA(UClass::StaticClass())) ? SanitizeName(Class->GetSuperStruct()->GetNameCPP()) : "";
+	std::string ClassFullName = Class->GetFullName();
+
+	if (ClassFullName.find("Default__") != std::string::npos)
+		return;
+
+	Buffer << "// " << ClassFullName << "\n";
+
+	int32_t FullSize = MinStructSize.count(Class) ? MinStructSize[Class] : Class->GetPropertiesSize();
+	int32_t SuperSize = (Class->GetSuperStruct() && (Class->GetSuperStruct()->IsA(UClass::StaticClass()) || Class->GetSuperStruct()->IsA(UScriptStruct::StaticClass()))) ? (MinStructSize.count(Class->GetSuperStruct()) ? MinStructSize[Class->GetSuperStruct()] : Class->GetSuperStruct()->GetPropertiesSize()) : 0;
+
+	Buffer << "// " << SDKMC_SSHEX(FullSize - SuperSize, 4) << " (" << SDKMC_SSHEX(FullSize, 4) << ")\n";
+
+	if (!SuperStructName.empty())
+		Buffer << "class " << StructName << " : public " << SuperStructName << "\n{\n";
+	else
+		Buffer << "class " << StructName << "\n{\n";
+
+	std::vector<PropertyInfo> Properties;
+
+	for (UField* Child = Class->GetChildren(); Child; Child = Child->GetNext())
+	{
+		if (!Child) 
+			continue;
+
+		if (Child->IsA(UProperty::StaticClass()))
+		{
+			UProperty* Property = Child->Cast<UProperty>();
+			if (!Property) continue;
+			PropertyInfo Info;
+			GeneratePropertyInfo(Property, Info);
+			Properties.push_back(Info);
+		}
+	}
+
+	std::sort(Properties.begin(), Properties.end(), PropertyInfo::Sort);
+
+	int32_t CurrentOffset = SuperSize;
+
+	std::vector<std::string> Functions;
+	std::unordered_set<UFunction*> ProcessedFunctions;
+
+	for (UField* Child = Class->GetChildren(); Child; Child = Child->GetNext())
+	{
+		if (!Child) continue;
+		if (Child->IsA(UFunction::StaticClass()))
+		{
+			UFunction* Function = Child->Cast<UFunction>();
+			if (!Function) continue;
+			Functions.push_back(GetFunctionSignature(Function) + "; // " + Child->GetFullName());
+			ProcessedFunctions.insert(Function);
+		}
+	}
+
+	for (int i = 0; i < GUObjectArray->GetObjObjects().GetNumElements(); i++)
+	{
+		UObject* Object = (UObject*)GUObjectArray->GetObjObjects().GetObjects(i)->GetObjectW();
+		if (!Object || !Object->IsA(UFunction::StaticClass()))
+			continue;
+
+		UFunction* Function = Object->Cast<UFunction>();
+		if (!Function)
+			continue;
+
+		UObject* OuterPrivate = Function->GetOuterPrivate();
+		if (!OuterPrivate || OuterPrivate != Class)
+			continue;
+
+		if (ProcessedFunctions.find(Function) != ProcessedFunctions.end())
+			continue;
+
+		Functions.push_back(GetFunctionSignature(Function) + "; // " + Function->GetFullName());
+		ProcessedFunctions.insert(Function);
+	}
+
+	if (!Properties.empty() || FullSize > CurrentOffset)
+	{
+		Buffer << "public:\n";
+
+		int32_t LastBitfieldByteOffset = -1;
+
+		for (const PropertyInfo& Property : Properties)
+		{
+			int32_t Offset = Property.Offset;
+			int32_t Size = Property.Size;
+
+			if (Offset > CurrentOffset)
+			{
+				int32_t Padding = Offset - CurrentOffset;
+				std::ostringstream PadName;
+
+				PadName << "UnknownData_" << std::hex << std::uppercase << CurrentOffset << "[" << SDKMC_SSHEX(Padding, 0) << "];";
+				Buffer << "\t" << SDKMC_SSCOL("uint8_t", 100) << " " << SDKMC_SSCOL(PadName.str(), 50) << " // " << SDKMC_SSHEX(CurrentOffset, 4) << " (" << SDKMC_SSHEX(Padding, 4) << ") MISSED OFFSET\n";
+			}
+
+			std::string PropertyType = Property.Type;
+			std::string PropertyName = Property.Name;
+
+			if (Property.ArrayDim > 1)
+				PropertyName += "[" + std::to_string(Property.ArrayDim) + "]";
+
+			if (Property.bIsBool && Property.bIsBitField)
+			{
+				if (LastBitfieldByteOffset != -1 && LastBitfieldByteOffset != Property.ByteOffset)
+					Buffer << "\t" << SDKMC_SSCOL("uint8_t", 100) << " " << SDKMC_SSHEX(": 0;", 50) << "\n";
+
+				Buffer << "\t" << SDKMC_SSCOL("uint8_t", 100) << " " << SDKMC_SSCOL(PropertyName + " : 1;", 50) << " // " << SDKMC_SSHEX(Offset, 4) << " (" << SDKMC_SSHEX(Size, 4) << ") [BITFIELD] [ByteOffset: " << SDKMC_SSHEX(Property.ByteOffset, 2) << "] [Mask: " << SDKMC_SSHEX(Property.ByteMask, 2) << "]\n";
+
+				LastBitfieldByteOffset = Property.ByteOffset;
+			}
+			else
+			{
+				Buffer << "\t" << SDKMC_SSCOL(PropertyType, 100) << " " << SDKMC_SSCOL(PropertyName + ";", 50) << " // " << SDKMC_SSHEX(Offset, 4) << " (" << SDKMC_SSHEX(Size, 4) << ")\n";
+				LastBitfieldByteOffset = -1;
+			}
+
+			CurrentOffset = max(CurrentOffset, Offset + Size);
+		}
+
+		if (FullSize > CurrentOffset)
+		{
+			int32_t Padding = FullSize - CurrentOffset;
+			std::ostringstream PadName;
+
+			PadName << "UnknownData_" << std::hex << std::uppercase << CurrentOffset << "[" << SDKMC_SSHEX(Padding, 0) << "];";
+			Buffer << "\t" << SDKMC_SSCOL("uint8_t", 100) << " " << SDKMC_SSCOL(PadName.str(), 50) << " // " << SDKMC_SSHEX(CurrentOffset, 4) << " (" << SDKMC_SSHEX(Padding, 4) << ") MISSED OFFSET\n";
+		}
+	}
+
+	if (!Functions.empty())
+	{
+		Buffer << "public:\n";
+
+		for (const std::string& Function : Functions)
+			Buffer << "\t" << Function << "\n";
+	}
+
+	Buffer << "public:\n";
+
+	Buffer << "\tstatic class UClass* StaticClass();\n";
+
+	Buffer << "};\n\n";
+
+	File << Buffer.str();
+}
+
+void Dumper::GenerateStaticClass(UClass* Class, std::ostream& File)
+{
+	if (!Class)
+		return;
+
+	std::string ClassName = SanitizeName(Class->GetNameCPP());
+	if (ClassName.find("Default__") != std::string::npos)
+		return;
+
+	File << "UClass* " << ClassName << "::StaticClass()\n{\n";
+	File << "\tstatic UClass* Class = nullptr;\n";
+	File << "\tif (!Class)\n";
+	File << "\t\tClass = UObject::StaticFindObject<UClass>(\"" << Class->GetPathName() << "\");\n\n";
+	File << "\treturn Class;\n";
+	File << "}\n\n";
 }

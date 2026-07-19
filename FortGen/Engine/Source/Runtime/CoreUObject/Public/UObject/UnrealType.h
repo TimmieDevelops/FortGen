@@ -1,6 +1,7 @@
 #pragma once
 #include "framework.h"
 #include "Class.h"
+#include "ObjectBase.h"
 
 class UProperty : public UField
 {
@@ -8,7 +9,7 @@ public:
 	DEFINE_STATICCLASS("/Script/CoreUObject.Property", UProperty)
 	DEFINE_MEMBER(ArrayDim, Address::UProperty_ArrayDim, int32_t)
 	DEFINE_MEMBER(ElementSize, Address::UProperty_ElementSize, int32_t)
-	DEFINE_MEMBER(PropertyFlags, Address::UProperty_PropertyFlags, uint64_t)
+	DEFINE_MEMBER(PropertyFlags, Address::UProperty_PropertyFlags, EPropertyFlags)
 	DEFINE_MEMBER(Offset_Internal, Address::UProperty_OffsetInternal, int32_t)
 };
 
@@ -164,9 +165,15 @@ public:
 	DEFINE_STATICCLASS("/Script/CoreUObject.LazyObjectProperty", ULazyObjectProperty)
 };
 
-
 class UUInt16Property : public UProperty
 {
 public:
 	DEFINE_STATICCLASS("/Script/CoreUObject.UInt16Property", UUInt16Property)
+};
+
+class UInterfaceProperty : public UProperty
+{
+public:
+	DEFINE_STATICCLASS("/Script/CoreUObject.InterfaceProperty", UInterfaceProperty)
+	DEFINE_MEMBER(InterfaceClass, Address::UInterfaceProperty_InterfaceClass, UClass*)
 };

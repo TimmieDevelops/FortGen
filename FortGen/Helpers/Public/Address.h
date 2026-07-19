@@ -70,6 +70,8 @@ namespace Address
 
 	inline uintptr_t UObjectPropertyBase_PropertyClass = 0;
 
+	inline uintptr_t UInterfaceProperty_InterfaceClass = 0;
+
 	void SetupAddress();
 	void SetupOffsets();
 }

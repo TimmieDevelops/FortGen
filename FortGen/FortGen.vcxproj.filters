@@ -102,6 +102,9 @@
     <ClInclude Include="Engine\Source\Runtime\CoreUObject\Public\UObject\UTextProperty.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Engine\Source\Runtime\CoreUObject\Public\UObject\ObjectBase.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -152,5 +155,8 @@
     <ClCompile Include="Engine\Source\Runtime\CoreUObject\Private\UObject\Object.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cpp.hint" />
   </ItemGroup>
 </Project>
