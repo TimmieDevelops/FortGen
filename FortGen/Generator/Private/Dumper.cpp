@@ -87,6 +87,7 @@ void Dumper::ProcessPackages(std::filesystem::path& FolderPath)
 	std::unordered_map<std::string, std::string> ClassBuffers;
 	std::unordered_map<std::string, std::string> FunctionBuffers;
 	std::unordered_map<std::string, std::string> ParamBuffers;
+	std::unordered_map<std::string, std::string> DelegateBuffers;
 
 	// First pass: generate everything in memory to determine non-empty files
 	for (auto& [PackageName, Objects] : PackageMap)
@@ -151,6 +152,18 @@ void Dumper::ProcessPackages(std::filesystem::path& FolderPath)
 			{
 				ParamBuffers[PackageName] = Content;
 				GeneratedFiles.insert("FN_" + PackageName + "_parameters.h");
+			}
+		}
+
+		// Delegates
+		{
+			std::ostringstream Buffer;
+			ProcessDelegates(Objects, PackageName, Buffer);
+			std::string Content = Buffer.str();
+			if (!Content.empty())
+			{
+				DelegateBuffers[PackageName] = Content;
+				GeneratedFiles.insert("FN_" + PackageName + "_delegates.h");
 			}
 		}
 	}
@@ -238,6 +251,21 @@ void Dumper::ProcessPackages(std::filesystem::path& FolderPath)
 		{
 			if (std::filesystem::exists(ParamsPath))
 				std::filesystem::remove(ParamsPath);
+		}
+
+		// 6. Delegates
+		std::string DelegateFileName = "FN_" + PackageName + "_delegates.h";
+		std::filesystem::path DelegatePath = FolderPath / DelegateFileName;
+		if (GeneratedFiles.count(DelegateFileName))
+		{
+			std::ofstream File(DelegatePath);
+			PrintFileHeader(File, PackageName, FullDependencies, "delegates");
+			File << DelegateBuffers[PackageName];
+		}
+		else
+		{
+			if (std::filesystem::exists(DelegatePath))
+				std::filesystem::remove(DelegatePath);
 		}
 	}
 }
@@ -464,6 +492,7 @@ void Dumper::GeneratePropertyInfo(UProperty* Property, PropertyInfo& Info)
 	Info.bIsBitField = false;
 	Info.ByteOffset = 0;
 	Info.ByteMask = 0;
+	Info.bIsDelegate = Property->IsA(UDelegateProperty::StaticClass()) || Property->IsA(UMulticastDelegateProperty::StaticClass());
 
 	if (Info.bIsBool)
 	{
@@ -638,13 +667,13 @@ void Dumper::PrintFileHeader(std::ostream& File, const std::string& PackageName,
 	File << "#pragma once\n";
 	File << "#include \"FN_Basic.h\"\n\n";
 
-	if (Type == "structs" || Type == "classes" || Type == "parameters")
+	if (Type == "structs" || Type == "classes" || Type == "parameters" || Type == "delegates")
 	{
 		std::string EnumHeader = "FN_" + PackageName + "_enums.h";
 		if (GeneratedFiles.count(EnumHeader))
 			File << "#include \"" << EnumHeader << "\"\n";
 
-		if (Type == "classes" || Type == "parameters")
+		if (Type == "classes" || Type == "parameters" || Type == "delegates")
 		{
 			std::string StructHeader = "FN_" + PackageName + "_structs.h";
 			if (GeneratedFiles.count(StructHeader))
@@ -656,6 +685,10 @@ void Dumper::PrintFileHeader(std::ostream& File, const std::string& PackageName,
 			std::string ParamHeader = "FN_" + PackageName + "_parameters.h";
 			if (GeneratedFiles.count(ParamHeader))
 				File << "#include \"" << ParamHeader << "\"\n";
+
+			std::string DelegateHeader = "FN_" + PackageName + "_delegates.h";
+			if (GeneratedFiles.count(DelegateHeader))
+				File << "#include \"" << DelegateHeader << "\"\n";
 		}
 
 		std::vector<std::string> SortedDependencies(Dependencies.begin(), Dependencies.end());
@@ -895,13 +928,16 @@ void Dumper::GenerateSDKHeader(std::filesystem::path& HeaderPath)
 				if (Type == "structs.h")
 					return 1;
 
-				if (Type == "classes.h")
+				if (Type == "delegates.h")
 					return 2;
 
-				if (Type == "parameters.h")
+				if (Type == "classes.h")
 					return 3;
 
-				return 4;
+				if (Type == "parameters.h")
+					return 4;
+
+				return 5;
 			};
 
 		return Priority(TypeA) < Priority(TypeB);
@@ -916,6 +952,82 @@ void Dumper::GenerateSDKHeader(std::filesystem::path& HeaderPath)
 	}
 
 	File << Buffer.str();
+}
+
+void Dumper::ProcessDelegates(const std::vector<class UObject*>& Objects, const std::string& PackageName, std::ostream& File)
+{
+	for (UObject* Object : Objects)
+	{
+		if (!Object)
+			continue;
+
+		if (Object->IsA(UFunction::StaticClass()))
+		{
+			UFunction* Function = Object->Cast<UFunction>();
+			if (!Function) continue;
+			if (!IsDelegateSignature(Function)) continue;
+			Logger::Log(LogLevel::Info, Function->GetName());
+			GenerateDelegate(Function, File);
+		}
+	}
+}
+
+void Dumper::GenerateDelegate(UFunction* Function, std::ostream& File)
+{
+	if (!Function)
+		return;
+
+	std::string FunctionName = SanitizeName(Function->GetName());
+	std::string OuterName = SanitizeName(Function->GetOuterPrivate()->GetNameCPP());
+	std::string StructName = "F" + OuterName + "_" + FunctionName;
+
+	std::string SuperName = "FMulticastScriptDelegate";
+	if (!(Function->GetFunctionFlags() & FUNC_MulticastDelegate))
+		SuperName = "FScriptDelegate";
+
+	File << "// " << Function->GetFullName() << "\n";
+	File << "struct " << StructName << " : public " << SuperName << "\n{\n";
+
+	// Generate helper/accessor typedef or signature signature
+	File << "\ttypedef void (" << OuterName << "::*Signature)(";
+
+	std::vector<std::string> Params;
+	std::string ReturnType = "void";
+
+	for (UField* Child = Function->GetChildren(); Child; Child = Child->GetNext())
+	{
+		if (!Child) continue;
+		if (Child->IsA(UProperty::StaticClass()))
+		{
+			UProperty* Property = Child->Cast<UProperty>();
+			if (!Property) continue;
+			if (Property->GetPropertyFlags() & CPF_Parm)
+			{
+				std::string Type = GetPropertyType(Property);
+				if (Property->GetPropertyFlags() & CPF_ReturnParm)
+					ReturnType = Type;
+				else
+					Params.push_back(Type);
+			}
+		}
+	}
+
+	for (size_t i = 0; i < Params.size(); ++i)
+	{
+		File << Params[i];
+		if (i != Params.size() - 1)
+			File << ", ";
+	}
+
+	File << ");\n";
+	File << "};\n\n";
+}
+
+bool Dumper::IsDelegateSignature(UFunction* Function)
+{
+	if (!Function) return false;
+	EFunctionFlags FunctionFlags = Function->GetFunctionFlags();
+	return ((FunctionFlags & (FUNC_Delegate | FUNC_MulticastDelegate)) || Function->GetName().find("__DelegateSignature") != std::string::npos);
 }
 
 void Dumper::GenerateBasicHeader(std::filesystem::path& HeaderPath)
@@ -1247,6 +1359,16 @@ void Dumper::GenerateScriptStruct(UScriptStruct* ScriptStruct, std::ostream& Fil
 
 				LastBitfieldByteOffset = Property.ByteOffset;
 			}
+			else if (Property.bIsDelegate)
+			{
+				std::ostringstream PadName;
+				PadName << "UnknownData_" << std::hex << std::uppercase << Offset << "[" << SDKMC_SSHEX(Size, 0) << "];";
+				Buffer << "\t" << SDKMC_SSCOL("uint8_t", 50) << " " << SDKMC_SSCOL(PadName.str(), 50) << " // " << SDKMC_SSHEX(Offset, 4) << " (" << SDKMC_SSHEX(Size, 4) << ") [PADDING FOR DELEGATE " << PropertyName << "]\n";
+
+				Buffer << "\tinline " << PropertyType << " Get" << PropertyName << "() const { return GetProperty<" << PropertyType << ">(" << SDKMC_SSHEX(Offset, 0) << "); }\n";
+				Buffer << "\tinline void Set" << PropertyName << "(const " << PropertyType << "& Value) { SetProperty<" << PropertyType << ">(" << SDKMC_SSHEX(Offset, 0) << ", Value); }\n";
+				LastBitfieldByteOffset = -1;
+			}
 			else
 			{
 				Buffer << "\t" << SDKMC_SSCOL(PropertyType, 100) << " " << SDKMC_SSCOL(PropertyName + ";", 50) << " // " << SDKMC_SSHEX(Offset, 4) << " (" << SDKMC_SSHEX(Size, 4) << ")\n";
@@ -1421,6 +1543,16 @@ void Dumper::GenerateClass(const std::vector<UObject*>& Objects, UClass* Class, 
 				Buffer << "\t" << SDKMC_SSCOL("uint8_t", 100) << " " << SDKMC_SSCOL(PropertyName + " : 1;", 50) << " // " << SDKMC_SSHEX(Offset, 4) << " (" << SDKMC_SSHEX(Size, 4) << ") [BITFIELD] [ByteOffset: " << SDKMC_SSHEX(Property.ByteOffset, 2) << "] [Mask: " << SDKMC_SSHEX(Property.ByteMask, 2) << "]\n";
 
 				LastBitfieldByteOffset = Property.ByteOffset;
+			}
+			else if (Property.bIsDelegate)
+			{
+				std::ostringstream PadName;
+				PadName << "UnknownData_" << std::hex << std::uppercase << Offset << "[" << SDKMC_SSHEX(Size, 0) << "];";
+				Buffer << "\t" << SDKMC_SSCOL("uint8_t", 100) << " " << SDKMC_SSCOL(PadName.str(), 50) << " // " << SDKMC_SSHEX(Offset, 4) << " (" << SDKMC_SSHEX(Size, 4) << ") [PADDING FOR DELEGATE " << PropertyName << "]\n";
+
+				Buffer << "\tinline " << PropertyType << " Get" << PropertyName << "() const { return GetProperty<" << PropertyType << ">(" << SDKMC_SSHEX(Offset, 0) << "); }\n";
+				Buffer << "\tinline void Set" << PropertyName << "(const " << PropertyType << "& Value) { SetProperty<" << PropertyType << ">(" << SDKMC_SSHEX(Offset, 0) << ", Value); }\n";
+				LastBitfieldByteOffset = -1;
 			}
 			else
 			{

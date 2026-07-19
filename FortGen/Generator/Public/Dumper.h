@@ -12,6 +12,7 @@ struct PropertyInfo
 	bool bIsBitField;
 	uint8_t ByteOffset;
 	uint8_t ByteMask;
+	bool bIsDelegate;
 
 	static bool Sort(const PropertyInfo& A, const PropertyInfo& B)
 	{
@@ -58,6 +59,7 @@ private:
 	static void ProcessClasses(const std::vector<class UObject*>& Objects, const std::string& PackageName, std::ostream& File);
 	static void ProcessFunctions(const std::vector<class UObject*>& Objects, std::ostream& File);
 	static void ProcessParameters(const std::vector<class UObject*>& Objects, const std::string& PackageName, std::ostream& File);
+	static void ProcessDelegates(const std::vector<class UObject*>& Objects, const std::string& PackageName, std::ostream& File);
 private:
 	static void GenerateEnum(class UEnum* Enum, std::ostream& File);
 	static void GenerateScriptStructs(class UScriptStruct* ScriptStruct, const std::string& PackageName, std::ostream& File);
@@ -68,6 +70,8 @@ private:
 	static void GenerateStaticStruct(class UScriptStruct* Struct, std::ostream& File);
 	static void GenerateFunction(const std::vector<class UObject*>& Objects, class UClass* Class, std::ostream& File);
 	static void GenerateParameters(class UFunction* Function, std::ostream& File);
+	static void GenerateDelegate(class UFunction* Function, std::ostream& File);
+	static bool IsDelegateSignature(class UFunction* Function);
 private:
 	inline static std::unordered_map<class UStruct*, int32_t> MinStructSize;
 	inline static std::unordered_set<std::string> ClassesFullName;

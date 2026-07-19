@@ -22,4 +22,16 @@ public:
 	{
 		return (this && IsA(Class)) ? static_cast<const T*>(this) : nullptr;
 	}
+
+	template<typename T>
+	T GetProperty(int32_t Offset) const
+	{
+		return *reinterpret_cast<const T*>(reinterpret_cast<const uint8_t*>(this) + Offset);
+	}
+
+	template<typename T>
+	void SetProperty(int32_t Offset, const T& Value)
+	{
+		*reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(this) + Offset) = Value;
+	}
 };
