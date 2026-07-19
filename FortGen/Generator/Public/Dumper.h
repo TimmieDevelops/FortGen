@@ -50,6 +50,8 @@ private:
 	static void BuildValidStructPackages();
 	static std::string GetFunctionSignature(class UFunction* Function, bool bWithScope = false);
 	static std::string GetFunctionBody(class UFunction* Function);
+	static void GenerateSDKHeader(std::filesystem::path& HeaderPath);
+	static void GenerateBasicHeader(std::filesystem::path& HeaderPath);
 private:
 	static void ProcessEnums(const std::vector<class UObject*>& Objects, const std::string& PackageName, std::ostream& File);
 	static void ProcessScriptStructs(const std::vector<class UObject*>& Objects, const std::string& PackageName, std::ostream& File);

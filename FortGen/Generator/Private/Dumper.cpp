@@ -27,11 +27,16 @@ void Dumper::Initialize()
 	if (!std::filesystem::exists(SDKPath))
 		std::filesystem::create_directories(SDKPath);
 
+	std::filesystem::path BasicHeader = SDKPath / "FN_Basic.h";
+	std::filesystem::path SDKHeader = FolderPath / "SDK.h";
+
 	BuildMinStructSize();
 	BuildValidStructPackages();
 
 	DumpObjects(FolderPath);
 	ProcessPackages(SDKPath);
+	GenerateSDKHeader(SDKHeader);
+	GenerateBasicHeader(BasicHeader);
 
 	Logger::Log(LogLevel::Info, "FortGen is finished dumping the SDK.");
 }
@@ -598,7 +603,8 @@ std::string Dumper::GetSafeName(const std::string& Name, const std::string& Type
 
 void Dumper::PrintFileHeader(std::ostream& File, const std::string& PackageName, const std::unordered_set<std::string>& Dependencies, const std::string& Type, const std::unordered_set<std::string>& InheritanceDependencies)
 {
-	File << "#pragma once\n\n";
+	File << "#pragma once\n";
+	File << "#include \"FN_Basic.h\"\n\n";
 
 	if (Type == "structs" || Type == "classes" || Type == "parameters")
 	{
@@ -821,6 +827,67 @@ std::string Dumper::GetFunctionBody(UFunction* Function)
 	Body << "}\n";
 
 	return Body.str();
+}
+
+void Dumper::GenerateSDKHeader(std::filesystem::path& HeaderPath)
+{
+	std::ostringstream Buffer;
+	std::ofstream File(HeaderPath);
+
+	std::vector<std::string> SortedFiles(GeneratedFiles.begin(), GeneratedFiles.end());
+	
+	std::sort(SortedFiles.begin(), SortedFiles.end(), 
+		[](const std::string& A, const std::string& B) {
+
+			auto Split = [](const std::string& File)
+				{
+					size_t Pos = File.find_last_of('_');
+
+					if (Pos == std::string::npos)
+						return std::pair<std::string, std::string>{File, ""};
+
+					return std::pair<std::string, std::string>{File.substr(0, Pos), File.substr(Pos + 1)};
+				};
+
+			auto [PackageA, TypeA] = Split(A);
+			auto [PackageB, TypeB] = Split(B);
+
+		if (PackageA != PackageB)
+			return PackageA < PackageB;
+
+		auto Priority = [](const std::string& Type)
+			{
+				if (Type == "enums.h")
+					return 0;
+
+				if (Type == "structs.h")
+					return 1;
+
+				if (Type == "classes.h")
+					return 2;
+
+				if (Type == "parameters.h")
+					return 3;
+
+				return 4;
+			};
+
+		return Priority(TypeA) < Priority(TypeB);
+		});
+
+	for (const std::string& File : SortedFiles)
+	{
+		if (File.find(".cpp") != std::string::npos)
+			continue;
+
+		Buffer << "#include \"SDK/" << File << "\"\n";
+	}
+
+	File << Buffer.str();
+}
+
+void Dumper::GenerateBasicHeader(std::filesystem::path& HeaderPath)
+{
 }
 
 void Dumper::ProcessEnums(const std::vector<UObject*>& Objects, const std::string& PackageName, std::ostream& File)
@@ -1454,7 +1521,7 @@ void Dumper::GenerateParameters(UFunction* Function, std::ostream& File)
 	std::string StructName = "F" + OuterName + "_" + SanitizeName(FunctionName) + "_Params";
 
 	Buffer << "// " << FunctionFullName << "\n";
-	Buffer << "struct " << StructName << "\n";
+	Buffer << "struct " << StructName << "\n{\n";
 
 	std::vector<PropertyInfo> Properties;
 
