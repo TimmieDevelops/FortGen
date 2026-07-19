@@ -63,6 +63,9 @@ std::string UObject::GetNameCPP() const
 		return Name;
 	}
 
+	if (IsA(UPackage::StaticClass()))
+		return GetPackageName();
+
 	return "None";
 }
 

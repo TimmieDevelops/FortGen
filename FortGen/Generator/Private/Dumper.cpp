@@ -69,6 +69,7 @@ void Dumper::ProcessPackages(std::filesystem::path& FolderPath)
 {
 	ClassesFullName.clear();
 	ScriptStructsFullName.clear();
+	GeneratedFiles.clear();
 
 	std::unordered_map<std::string, std::vector<UObject*>> PackageMap;
 
@@ -81,53 +82,83 @@ void Dumper::ProcessPackages(std::filesystem::path& FolderPath)
 		PackageMap[SanitizeName(Package->GetPackageName())].push_back(Object);
 	}
 
+	std::unordered_map<std::string, std::string> EnumBuffers;
+	std::unordered_map<std::string, std::string> StructBuffers;
+	std::unordered_map<std::string, std::string> ClassBuffers;
+	std::unordered_map<std::string, std::string> FunctionBuffers;
+	std::unordered_map<std::string, std::string> ParamBuffers;
+	std::unordered_map<std::string, std::string> DelegateBuffers;
+
 	for (auto& [PackageName, Objects] : PackageMap)
 	{
-		bool bHasEnum = false;
-		bool bHasStruct = false;
-		bool bHasClass = false;
-		bool bHasParam = false;
+		GeneratedNamesInPackage.clear();
 
-		for (UObject* Object : Objects)
 		{
-			if (!Object)
-				continue;
-
-			if (Object->IsA(UEnum::StaticClass()))
+			std::ostringstream Buffer;
+			ProcessEnums(Objects, PackageName, Buffer);
+			std::string Content = Buffer.str();
+			if (!Content.empty())
 			{
-				bHasEnum = true;
-			}
-
-			if (Object->IsA(UScriptStruct::StaticClass()))
-				bHasStruct = true;
-
-			if (Object->IsA(UClass::StaticClass()))
-				bHasClass = true;
-
-			if (Object->IsA(UFunction::StaticClass()))
-			{
-				UFunction* Function = Object->Cast<UFunction>();
-				if (!Function) continue;
-				bHasParam = true;
-				if (Function->GetFunctionFlags() & (FUNC_Delegate | FUNC_MulticastDelegate))
-					bHasStruct = true;
+				EnumBuffers[PackageName] = Content;
+				GeneratedFiles.insert("FN_" + PackageName + "_enums.h");
 			}
 		}
 
-		if (bHasEnum)
-			GeneratedFiles.insert("FN_" + PackageName + "_enums.h");
+		{
+			std::ostringstream Buffer;
+			ProcessingScriptStructs.clear();
+			ProcessScriptStructs(Objects, PackageName, Buffer);
+			std::string Content = Buffer.str();
+			if (!Content.empty())
+			{
+				StructBuffers[PackageName] = Content;
+				GeneratedFiles.insert("FN_" + PackageName + "_structs.h");
+			}
+		}
 
-		if (bHasStruct)
-			GeneratedFiles.insert("FN_" + PackageName + "_structs.h");
+		{
+			std::ostringstream Buffer;
+			ProcessClasses(Objects, PackageName, Buffer);
+			std::string Content = Buffer.str();
+			if (!Content.empty())
+			{
+				ClassBuffers[PackageName] = Content;
+				GeneratedFiles.insert("FN_" + PackageName + "_classes.h");
+			}
+		}
 
-		if (bHasClass)
-			GeneratedFiles.insert("FN_" + PackageName + "_classes.h");
+		{
+			std::ostringstream Buffer;
+			ProcessFunctions(Objects, Buffer);
+			std::string Content = Buffer.str();
+			if (!Content.empty())
+			{
+				FunctionBuffers[PackageName] = Content;
+				GeneratedFiles.insert("FN_" + PackageName + "_functions.cpp");
+			}
+		}
 
-		if (bHasClass)
-			GeneratedFiles.insert("FN_" + PackageName + "_functions.cpp");
+		{
+			std::ostringstream Buffer;
+			ProcessParameters(Objects, PackageName, Buffer);
+			std::string Content = Buffer.str();
+			if (!Content.empty())
+			{
+				ParamBuffers[PackageName] = Content;
+				GeneratedFiles.insert("FN_" + PackageName + "_parameters.h");
+			}
+		}
 
-		if (bHasParam)
-			GeneratedFiles.insert("FN_" + PackageName + "_parameters.h");
+		{
+			std::ostringstream Buffer;
+			ProcessDelegates(Objects, PackageName, Buffer);
+			std::string Content = Buffer.str();
+			if (!Content.empty())
+			{
+				DelegateBuffers[PackageName] = Content;
+				GeneratedFiles.insert("FN_" + PackageName + "_delegates.h");
+			}
+		}
 	}
 
 	for (auto& [PackageName, Objects] : PackageMap)
@@ -139,73 +170,91 @@ void Dumper::ProcessPackages(std::filesystem::path& FolderPath)
 		std::unordered_set<std::string> InheritanceDependencies = GetPackageDependencies(PackageName, Objects, false, true);
 
 		std::string EnumFileName = "FN_" + PackageName + "_enums.h";
+		std::filesystem::path EnumPath = FolderPath / EnumFileName;
 		if (GeneratedFiles.count(EnumFileName))
 		{
-			std::ostringstream Buffer;
-			ProcessEnums(Objects, PackageName, Buffer);
-			std::filesystem::path Path = FolderPath / EnumFileName;
-			std::ofstream File(Path);
+			std::ofstream File(EnumPath);
 			PrintFileHeader(File, PackageName, {}, "enums");
-			File << Buffer.str();
+			File << EnumBuffers[PackageName];
+		}
+		else
+		{
+			if (std::filesystem::exists(EnumPath))
+				std::filesystem::remove(EnumPath);
 		}
 
 		std::string StructFileName = "FN_" + PackageName + "_structs.h";
+		std::filesystem::path StructPath = FolderPath / StructFileName;
 		if (GeneratedFiles.count(StructFileName))
 		{
-			std::ostringstream Buffer;
-			ProcessingScriptStructs.clear();
-			ProcessScriptStructs(Objects, PackageName, Buffer);
-			std::filesystem::path Path = FolderPath / StructFileName;
-			if (!Buffer.str().empty())
-			{
-				std::ofstream File(Path);
-				PrintFileHeader(File, PackageName, StructuralDependencies, "structs");
-				File << Buffer.str(); 
-			}
-			else
-			{
-				if (std::filesystem::exists(Path))
-					std::filesystem::remove(Path);
-			}
+			std::ofstream File(StructPath);
+			PrintFileHeader(File, PackageName, StructuralDependencies, "structs");
+			File << StructBuffers[PackageName];
+		}
+		else
+		{
+			if (std::filesystem::exists(StructPath))
+				std::filesystem::remove(StructPath);
 		}
 
 		std::string ClassFileName = "FN_" + PackageName + "_classes.h";
+		std::filesystem::path ClassPath = FolderPath / ClassFileName;
 		if (GeneratedFiles.count(ClassFileName))
 		{
-			std::ostringstream Buffer;
-			ProcessClasses(Objects, PackageName, Buffer);
-			std::filesystem::path Path = FolderPath / ClassFileName;
-			std::ofstream File(Path);
+			std::ofstream File(ClassPath);
 			PrintFileHeader(File, PackageName, FullDependencies, "classes", InheritanceDependencies);
-			File << Buffer.str();
+			File << ClassBuffers[PackageName];
+		}
+		else
+		{
+			if (std::filesystem::exists(ClassPath))
+				std::filesystem::remove(ClassPath);
 		}
 
 		std::string FunctionFileName = "FN_" + PackageName + "_functions.cpp";
+		std::filesystem::path FunctionPath = FolderPath / FunctionFileName;
 		if (GeneratedFiles.count(FunctionFileName))
 		{
 			std::ostringstream Buffer;
-			ProcessFunctions(Objects, Buffer);
-			if (!Buffer.str().empty())
-			{
-				std::filesystem::path Path = FolderPath / FunctionFileName;
-				std::ofstream File(Path);
-				if (Settings::bInclude_pch_Header) File << "#include \"pch.h\"\n\n";
-				std::string Header = "FN_" + PackageName + "_classes.h";
-				if (GeneratedFiles.count(Header))
-					File << "#include \"" << Header << "\"\n\n";
-				File << Buffer.str();
-			}
+			std::ofstream File(FunctionPath);
+			if (Settings::bInclude_pch_Header) File << "#include \"pch.h\"\n\n";
+			std::string Header = "FN_" + PackageName + "_classes.h";
+			if (GeneratedFiles.count(Header))
+				File << "#include \"" << Header << "\"\n\n";
+			File << FunctionBuffers[PackageName];
+		}
+		else
+		{
+			if (std::filesystem::exists(FunctionPath))
+				std::filesystem::remove(FunctionPath);
 		}
 
 		std::string ParamsFileName = "FN_" + PackageName + "_parameters.h";
+		std::filesystem::path ParamsPath = FolderPath / ParamsFileName;
 		if (GeneratedFiles.count(ParamsFileName))
 		{
-			std::ostringstream Buffer;
-			ProcessParameters(Objects, PackageName, Buffer);
-			std::filesystem::path Path = FolderPath / ParamsFileName;
-			std::ofstream File(Path);
+			std::ofstream File(ParamsPath);
 			PrintFileHeader(File, PackageName, FullDependencies, "parameters");
-			File << Buffer.str();
+			File << ParamBuffers[PackageName];
+		}
+		else
+		{
+			if (std::filesystem::exists(ParamsPath))
+				std::filesystem::remove(ParamsPath);
+		}
+
+		std::string DelegatesFileName = "FN_" + PackageName + "_delegates.h";
+		std::filesystem::path DelegatesPath = FolderPath / DelegatesFileName;
+		if (GeneratedFiles.count(DelegatesFileName))
+		{
+			std::ofstream File(ParamsPath);
+			PrintFileHeader(File, PackageName, FullDependencies, "delegates");
+			File << DelegateBuffers[PackageName];
+		}
+		else
+		{
+			if (std::filesystem::exists(DelegatesPath))
+				std::filesystem::remove(DelegatesPath);
 		}
 	}
 }
@@ -328,7 +377,7 @@ std::unordered_set<std::string> Dumper::GetPackageDependencies(const std::string
 				continue;
 
 			EFunctionFlags FunctionFlags = Function->GetFunctionFlags();
-			if ((FunctionFlags & (FUNC_Delegate | FUNC_MulticastDelegate) || Function->GetName().find("__DelegateSignature") != std::string::npos))
+			if (IsDelegateSignature(Function))
 			{
 				for (UField* Param = Function->GetChildren(); Param; Param = Param->GetNext())
 				{
@@ -606,13 +655,13 @@ void Dumper::PrintFileHeader(std::ostream& File, const std::string& PackageName,
 	File << "#pragma once\n";
 	File << "#include \"FN_Basic.h\"\n\n";
 
-	if (Type == "structs" || Type == "classes" || Type == "parameters")
+	if (Type == "structs" || Type == "classes" || Type == "parameters" || Type == "delegates")
 	{
 		std::string EnumHeader = "FN_" + PackageName + "_enums.h";
 		if (GeneratedFiles.count(EnumHeader))
 			File << "#include \"" << EnumHeader << "\"\n";
 
-		if (Type == "classes" || Type == "parameters")
+		if (Type == "classes" || Type == "parameters" || Type == "delegates")
 		{
 			std::string StructHeader = "FN_" + PackageName + "_structs.h";
 			if (GeneratedFiles.count(StructHeader))
@@ -635,20 +684,16 @@ void Dumper::PrintFileHeader(std::ostream& File, const std::string& PackageName,
 				continue;
 
 			std::string DepEnum = "FN_" + Dependency + "_enums.h";
-
 			if (GeneratedFiles.count(DepEnum))
 				File << "#include \"" << DepEnum << "\"\n";
 
+			std::string DepDelegates = "FN_" + Dependency + "_delegates.h";
+			if (GeneratedFiles.count(DepDelegates))
+				File << "#include \"" << DepDelegates << "\"\n";
+
 			std::string DepStruct = "FN_" + Dependency + "_structs.h";
-			if (GeneratedFiles.find(DepStruct) != GeneratedFiles.end())
-			{
+			if (GeneratedFiles.count(DepStruct))
 				File << "#include \"" << DepStruct << "\"\n";
-			}
-			else
-			{
-				if (ValidStructPackages.count(Dependency))
-					File << "#include \"" << DepStruct << "\"\n";
-			}
 
 			if (Type == "classes")
 			{
@@ -884,10 +929,29 @@ void Dumper::GenerateSDKHeader(std::filesystem::path& HeaderPath)
 	}
 
 	File << Buffer.str();
+	File.close();
 }
 
 void Dumper::GenerateBasicHeader(std::filesystem::path& HeaderPath)
 {
+	std::ostringstream Buffer;
+	std::ofstream File(HeaderPath);
+
+	Buffer << "#pragma once\n";
+	Buffer << "#include <Windows.h>\n";
+	Buffer << "#include <iostream>\n";
+
+	File << Buffer.str();
+	File.close();
+}
+
+bool Dumper::IsDelegateSignature(UFunction* Function)
+{
+	if (!Function)
+		return false;
+
+	EFunctionFlags FunctionFlags = Function->GetFunctionFlags();
+	return (FunctionFlags & (FUNC_Delegate | FUNC_MulticastDelegate)) || Function->GetName().find("__Delegate") != std::string::npos;
 }
 
 void Dumper::ProcessEnums(const std::vector<UObject*>& Objects, const std::string& PackageName, std::ostream& File)
@@ -972,7 +1036,25 @@ void Dumper::ProcessParameters(const std::vector<class UObject*>& Objects, const
 		{
 			UFunction* Function = Object->Cast<UFunction>();
 			if (!Function) continue;
+			if (IsDelegateSignature(Function)) continue;
 			GenerateParameters(Function, File);
+		}
+	}
+}
+
+void Dumper::ProcessDelegates(const std::vector<class UObject*>& Objects, const std::string& PackageName, std::ostream& File)
+{
+	for (UObject* Object : Objects)
+	{
+		if (!Object)
+			continue;
+
+		if (Object->IsA(UFunction::StaticClass()))
+		{
+			UFunction* Function = Object->Cast<UFunction>();
+			if (!Function) continue;
+			if (!IsDelegateSignature(Function)) continue;
+			Logger::Log(LogLevel::Info, Function->GetName());
 		}
 	}
 }
@@ -1447,6 +1529,17 @@ void Dumper::GenerateStaticStruct(UScriptStruct* Struct, std::ostream& File)
 {
 	if (!Struct)
 		return;
+
+	std::string StructName = SanitizeName(Struct->GetNameCPP());
+	if (StructName.find("Default__") != std::string::npos)
+		return;
+
+	File << "UScriptStruct* " << StructName << "::StaticStruct()\n{\n";
+	File << "\tstatic UScriptStruct* Struct = nullptr;\n";
+	File << "\tif (!Struct)\n";
+	File << "\t\tStruct = UObject::StaticFindObject<UScriptStruct>(\"" << Struct->GetPathName() << "\");\n\n";
+	File << "\treturn Struct;\n";
+	File << "}\n\n";
 }
 
 void Dumper::GenerateFunction(const std::vector<UObject*>& Objects, UClass* Class, std::ostream& File)

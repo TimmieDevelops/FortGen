@@ -52,12 +52,14 @@ private:
 	static std::string GetFunctionBody(class UFunction* Function);
 	static void GenerateSDKHeader(std::filesystem::path& HeaderPath);
 	static void GenerateBasicHeader(std::filesystem::path& HeaderPath);
+	static bool IsDelegateSignature(class UFunction* Function);
 private:
 	static void ProcessEnums(const std::vector<class UObject*>& Objects, const std::string& PackageName, std::ostream& File);
 	static void ProcessScriptStructs(const std::vector<class UObject*>& Objects, const std::string& PackageName, std::ostream& File);
 	static void ProcessClasses(const std::vector<class UObject*>& Objects, const std::string& PackageName, std::ostream& File);
 	static void ProcessFunctions(const std::vector<class UObject*>& Objects, std::ostream& File);
 	static void ProcessParameters(const std::vector<class UObject*>& Objects, const std::string& PackageName, std::ostream& File);
+	static void ProcessDelegates(const std::vector<class UObject*>& Objects, const std::string& PackageName, std::ostream& File);
 private:
 	static void GenerateEnum(class UEnum* Enum, std::ostream& File);
 	static void GenerateScriptStructs(class UScriptStruct* ScriptStruct, const std::string& PackageName, std::ostream& File);
