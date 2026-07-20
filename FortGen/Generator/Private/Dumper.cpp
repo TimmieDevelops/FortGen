@@ -144,7 +144,7 @@ void Dumper::ProcessPackages(std::filesystem::path& FolderPath)
 			std::string Content = Buffer.str();
 			if (!Content.empty())
 			{
-				DelegateBuffers[PackageName] = Content;
+				ParamBuffers[PackageName] = Content;
 				GeneratedFiles.insert("FN_" + PackageName + "_parameters.h");
 			}
 		}
