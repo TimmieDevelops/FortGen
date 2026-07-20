@@ -144,7 +144,7 @@ void Dumper::ProcessPackages(std::filesystem::path& FolderPath)
 			std::string Content = Buffer.str();
 			if (!Content.empty())
 			{
-				DelegateBuffers[PackageName] = Content;
+				ParamBuffers[PackageName] = Content;
 				GeneratedFiles.insert("FN_" + PackageName + "_parameters.h");
 			}
 		}
@@ -661,6 +661,13 @@ void Dumper::PrintFileHeader(std::ostream& File, const std::string& PackageName,
 		std::string EnumHeader = "FN_" + PackageName + "_enums.h";
 		if (GeneratedFiles.count(EnumHeader))
 			File << "#include \"" << EnumHeader << "\"\n";
+
+		if (Type == "structs" || Type == "classes" || Type == "parameters")
+		{
+			std::string DelegateHeader = "FN_" + PackageName + "_delegates.h";
+			if (GeneratedFiles.count(DelegateHeader))
+				File << "#include \"" << DelegateHeader << "\"\n";
+		}
 
 		if (Type == "classes" || Type == "parameters" || Type == "delegates")
 		{
@@ -1697,5 +1704,22 @@ void Dumper::GenerateDelegates(UFunction* Function, std::ostream& File)
 	if (!Function)
 		return;
 
-	// i guess soon?
+	std::ostringstream Buffer;
+
+	std::string FunctionName = Function->GetName();
+	std::string FunctionFullName = Function->GetFullName();
+	if (FunctionFullName.find("Default__") != std::string::npos)
+		return;
+
+	std::string OuterName = SanitizeName(Function->GetOuterPrivate()->GetNameCPP());
+	std::string StructName = "F" + OuterName + "_" + SanitizeName(FunctionName);
+
+	Buffer << "// " << FunctionFullName << "\n";
+
+	bool bIsMulticast = (Function->GetFunctionFlags() & FUNC_MulticastDelegate) != 0;
+	std::string BaseClass = bIsMulticast ? "FMulticastScriptDelegate" : "FScriptDelegate";
+
+	Buffer << "struct " << StructName << " : public " << BaseClass << "\n{\n};\n\n";
+
+	File << Buffer.str();
 }

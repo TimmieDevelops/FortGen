@@ -11,6 +11,23 @@ public:
 	int32_t	  ArrayMax;
 };
 
+class FScriptArray
+{
+public:
+	void* Data;
+	int32_t ArrayNum;
+	int32_t ArrayMax;
+};
+
+class FScriptBitArray
+{
+public:
+	FScriptArray Data;
+	int32_t NumBits;
+};
+
+typedef FScriptBitArray FArrayBitArray;
+
 class FString : public TArray<wchar_t>
 {
 
@@ -85,6 +102,30 @@ public:
 	ValueType Value;
 };
 
+class FSetElementId
+{
+public:
+	int32_t Index;
+};
+
+class FDefaultAllocator
+{
+public:
+	template<typename ElementType>
+	class ForElementType
+	{
+	public:
+		ElementType* Data;
+	};
+};
+
+class FDefaultSetAllocator
+{
+public:
+	typedef FDefaultAllocator SparseArrayAllocator;
+	typedef FDefaultAllocator HashAllocator;
+};
+
 template<typename ElementType>
 class TSparseArray
 {
@@ -95,11 +136,11 @@ public:
 	int32_t NumFreeIndices;
 };
 
-template<typename InElementType>
+template<typename InElementType, typename Allocator = FDefaultSetAllocator>
 class TSet
 {
 public:
-	typedef Allocator::HashAllocator::ForElementType<FSetElementId> HashType; // don't know what this is but i going to add it later
+	typedef typename Allocator::HashAllocator::template ForElementType<FSetElementId> HashType;
 
 	TSparseArray<InElementType> Elements;
 	HashType Hash;
