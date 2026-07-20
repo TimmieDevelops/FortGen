@@ -11,6 +11,21 @@ public:
 	int32_t	  ArrayMax;
 };
 
+class FScriptArray
+{
+public:
+	void* Data;
+	int32_t ArrayNum;
+	int32_t ArrayMax;
+};
+
+class FScriptBitArray
+{
+public:
+	FScriptArray Data;
+	int32_t NumBits;
+};
+
 class FString : public TArray<wchar_t>
 {
 
@@ -99,10 +114,8 @@ template<typename InElementType>
 class TSet
 {
 public:
-	typedef Allocator::HashAllocator::ForElementType<FSetElementId> HashType; // don't know what this is but i going to add it later
-
 	TSparseArray<InElementType> Elements;
-	HashType Hash;
+	FScriptArray Hash;
 	int32_t HashSize;
 };
 
