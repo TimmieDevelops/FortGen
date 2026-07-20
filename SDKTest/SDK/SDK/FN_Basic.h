@@ -153,3 +153,10 @@ class TMap
 public:
 	TSet<TPair<KeyType, ValueType>> Pairs;
 };
+
+template<typename T>
+class TAssetPtr
+{
+public:
+	FString ObjectID;
+};

@@ -107,6 +107,7 @@ void Dumper::ProcessPackages(std::filesystem::path& FolderPath)
 		{
 			std::ostringstream Buffer;
 			ProcessingScriptStructs.clear();
+			ProcessDelegates(Objects, PackageName, Buffer);
 			ProcessScriptStructs(Objects, PackageName, Buffer);
 			std::string Content = Buffer.str();
 			if (!Content.empty())
@@ -146,17 +147,6 @@ void Dumper::ProcessPackages(std::filesystem::path& FolderPath)
 			{
 				ParamBuffers[PackageName] = Content;
 				GeneratedFiles.insert("FN_" + PackageName + "_parameters.h");
-			}
-		}
-
-		{
-			std::ostringstream Buffer;
-			ProcessDelegates(Objects, PackageName, Buffer);
-			std::string Content = Buffer.str();
-			if (!Content.empty())
-			{
-				DelegateBuffers[PackageName] = Content;
-				GeneratedFiles.insert("FN_" + PackageName + "_delegates.h");
 			}
 		}
 	}
@@ -245,17 +235,8 @@ void Dumper::ProcessPackages(std::filesystem::path& FolderPath)
 
 		std::string DelegatesFileName = "FN_" + PackageName + "_delegates.h";
 		std::filesystem::path DelegatesPath = FolderPath / DelegatesFileName;
-		if (GeneratedFiles.count(DelegatesFileName))
-		{
-			std::ofstream File(DelegatesPath);
-			PrintFileHeader(File, PackageName, FullDependencies, "delegates");
-			File << DelegateBuffers[PackageName];
-		}
-		else
-		{
-			if (std::filesystem::exists(DelegatesPath))
-				std::filesystem::remove(DelegatesPath);
-		}
+		if (std::filesystem::exists(DelegatesPath))
+			std::filesystem::remove(DelegatesPath);
 	}
 }
 
@@ -656,20 +637,13 @@ void Dumper::PrintFileHeader(std::ostream& File, const std::string& PackageName,
 	File << "#pragma once\n";
 	File << "#include \"FN_Basic.h\"\n\n";
 
-	if (Type == "structs" || Type == "classes" || Type == "parameters" || Type == "delegates")
+	if (Type == "structs" || Type == "classes" || Type == "parameters")
 	{
 		std::string EnumHeader = "FN_" + PackageName + "_enums.h";
 		if (GeneratedFiles.count(EnumHeader))
 			File << "#include \"" << EnumHeader << "\"\n";
 
-		if (Type == "structs" || Type == "classes" || Type == "parameters")
-		{
-			std::string DelegateHeader = "FN_" + PackageName + "_delegates.h";
-			if (GeneratedFiles.count(DelegateHeader))
-				File << "#include \"" << DelegateHeader << "\"\n";
-		}
-
-		if (Type == "classes" || Type == "parameters" || Type == "delegates")
+		if (Type == "classes" || Type == "parameters")
 		{
 			std::string StructHeader = "FN_" + PackageName + "_structs.h";
 			if (GeneratedFiles.count(StructHeader))
@@ -694,10 +668,6 @@ void Dumper::PrintFileHeader(std::ostream& File, const std::string& PackageName,
 			std::string DepEnum = "FN_" + Dependency + "_enums.h";
 			if (GeneratedFiles.count(DepEnum))
 				File << "#include \"" << DepEnum << "\"\n";
-
-			std::string DepDelegates = "FN_" + Dependency + "_delegates.h";
-			if (GeneratedFiles.count(DepDelegates))
-				File << "#include \"" << DepDelegates << "\"\n";
 
 			std::string DepStruct = "FN_" + Dependency + "_structs.h";
 			if (GeneratedFiles.count(DepStruct))
@@ -916,16 +886,13 @@ void Dumper::GenerateSDKHeader(std::filesystem::path& HeaderPath)
 				if (Type == "structs.h")
 					return 1;
 
-				if (Type == "delegates.h")
+				if (Type == "classes.h")
 					return 2;
 
-				if (Type == "classes.h")
+				if (Type == "parameters")
 					return 3;
 
-				if (Type == "parameters")
-					return 4;
-
-				return 5;
+				return 4;
 			};
 
 		return Priority(TypeA) < Priority(TypeB);
