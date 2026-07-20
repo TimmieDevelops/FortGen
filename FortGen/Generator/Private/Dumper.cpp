@@ -662,6 +662,13 @@ void Dumper::PrintFileHeader(std::ostream& File, const std::string& PackageName,
 		if (GeneratedFiles.count(EnumHeader))
 			File << "#include \"" << EnumHeader << "\"\n";
 
+		if (Type == "structs" || Type == "classes" || Type == "parameters")
+		{
+			std::string DelegateHeader = "FN_" + PackageName + "_delegates.h";
+			if (GeneratedFiles.count(DelegateHeader))
+				File << "#include \"" << DelegateHeader << "\"\n";
+		}
+
 		if (Type == "classes" || Type == "parameters" || Type == "delegates")
 		{
 			std::string StructHeader = "FN_" + PackageName + "_structs.h";
