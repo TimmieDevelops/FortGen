@@ -1697,5 +1697,22 @@ void Dumper::GenerateDelegates(UFunction* Function, std::ostream& File)
 	if (!Function)
 		return;
 
-	// i guess soon?
+	std::ostringstream Buffer;
+
+	std::string FunctionName = Function->GetName();
+	std::string FunctionFullName = Function->GetFullName();
+	if (FunctionFullName.find("Default__") != std::string::npos)
+		return;
+
+	std::string OuterName = SanitizeName(Function->GetOuterPrivate()->GetNameCPP());
+	std::string StructName = "F" + OuterName + "_" + SanitizeName(FunctionName);
+
+	Buffer << "// " << FunctionFullName << "\n";
+
+	bool bIsMulticast = (Function->GetFunctionFlags() & FUNC_MulticastDelegate) != 0;
+	std::string BaseClass = bIsMulticast ? "FMulticastScriptDelegate" : "FScriptDelegate";
+
+	Buffer << "struct " << StructName << " : public " << BaseClass << "\n{\n};\n\n";
+
+	File << Buffer.str();
 }
